@@ -1,72 +1,58 @@
-import { createClient } from "@supabase/supabase-js";
-import { prisma } from "@/lib/prisma";
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { getBackendMode } from '@/lib/backend';
+import { ensureLocalDemoUser, getStore } from '@/lib/data';
+import { ApiError } from '@/lib/errors';
+import type { SessionUser } from '@/lib/types';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
-export type AuthedUser = {
-  id: string;
-  ageVerified: true;
-};
+export const SESSION_COOKIE = 'dr_session';
 
-export type AuthFailure = {
-  ok: false;
-  status: 401 | 403;
-  error: string;
-};
+export async function getSessionUser(): Promise<SessionUser | null> {
+  const mode = getBackendMode();
+  if (mode === 'unconfigured') return null;
+  if (mode === 'memory') {
+    const id = cookies().get(SESSION_COOKIE)?.value;
+    if (!id) return null;
+    return getStore().getUserById(id);
+  }
 
-export type AuthSuccess = {
-  ok: true;
-  user: AuthedUser;
-};
-
-function readBearer(request: Request): string | null {
-  const header = request.headers.get("authorization");
-  if (!header?.startsWith("Bearer ")) return null;
-  const token = header.slice("Bearer ".length).trim();
-  return token || null;
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return getStore().getUserByAuthId(data.user.id);
 }
 
-/**
- * Confirms the caller is signed in and age-verified.
- * The database flag is the source of truth once a profile exists.
- * A brand-new profile can be created only from Supabase app_metadata,
- * which the user cannot edit themselves.
- */
-export async function requireAgeVerifiedUser(request: Request): Promise<AuthSuccess | AuthFailure> {
-  const token = readBearer(request);
-  if (!token) {
-    return { ok: false, status: 401, error: "Sign in required." };
+export async function requirePageUser(nextPath = '/feed'): Promise<SessionUser> {
+  const user = await getSessionUser();
+  if (!user || user.ageVerification !== true) {
+    redirect(`/age-verification?next=${encodeURIComponent(nextPath)}`);
   }
+  return user;
+}
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
-    return { ok: false, status: 401, error: "Sign in required." };
+export async function requireApiUser(): Promise<SessionUser> {
+  if (getBackendMode() === 'unconfigured') {
+    throw new ApiError(503, 'Data backend is not configured');
   }
+  const user = await getSessionUser();
+  if (!user) throw new ApiError(401, 'Sign in required');
+  if (user.ageVerification !== true) throw new ApiError(403, 'Age verification required');
+  return user;
+}
 
-  const supabase = createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
+export function setMemorySession(userId: string) {
+  cookies().set(SESSION_COOKIE, userId, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
   });
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) {
-    return { ok: false, status: 401, error: "Sign in required." };
-  }
+}
 
-  const userId = data.user.id;
-  const existing = await prisma.user.findUnique({ where: { id: userId } });
-  const metadataFlag = data.user.app_metadata?.ageVerified === true;
-
-  if (!existing) {
-    if (!metadataFlag) {
-      return { ok: false, status: 403, error: "Age verification required." };
-    }
-    await prisma.user.create({
-      data: { id: userId, ageVerified: true },
-    });
-    return { ok: true, user: { id: userId, ageVerified: true } };
-  }
-
-  if (existing.ageVerified !== true) {
-    return { ok: false, status: 403, error: "Age verification required." };
-  }
-
-  return { ok: true, user: { id: userId, ageVerified: true } };
+export async function startLocalSession(): Promise<SessionUser> {
+  const existing = await getSessionUser();
+  if (existing) return existing;
+  return ensureLocalDemoUser();
 }

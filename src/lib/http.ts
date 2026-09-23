@@ -1,45 +1,20 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
-import { HttpError } from '@/lib/errors';
-import { hashIp } from '@/lib/encryption';
+import { ApiError } from '@/lib/errors';
 
-export function clientIp(request: Request): string | null {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    return first || null;
-  }
-  return request.headers.get('x-real-ip');
+export function json<T>(body: T, status = 200) {
+  return NextResponse.json(body, { status });
 }
 
-export function clientIpHash(request: Request): string | null {
+export async function handle(fn: () => Promise<Response>) {
   try {
-    return hashIp(clientIp(request));
-  } catch {
-    return null;
-  }
-}
-
-export function jsonError(message: string, status: number, code?: string) {
-  return NextResponse.json(code ? { error: message, code } : { error: message }, { status });
-}
-
-export function withApi(handler: (request: Request) => Promise<Response>) {
-  return async (request: Request) => {
-    try {
-      return await handler(request);
-    } catch (error) {
-      if (error instanceof HttpError) {
-        return jsonError(error.message, error.status, error.code);
-      }
-      if (error instanceof ZodError) {
-        return NextResponse.json(
-          { error: 'Check the form and try again.', issues: error.flatten() },
-          { status: 400 },
-        );
-      }
-      console.error(error instanceof Error ? error.name : 'request failed');
-      return jsonError('Something went wrong. Try again in a moment.', 500);
+    return await fn();
+  } catch (error) {
+    if (error instanceof ApiError) return json({ error: error.message }, error.status);
+    if (error instanceof ZodError) {
+      return json({ error: 'Invalid request', issues: error.flatten() }, 400);
     }
-  };
+    console.error(error);
+    return json({ error: 'Something went wrong' }, 500);
+  }
 }

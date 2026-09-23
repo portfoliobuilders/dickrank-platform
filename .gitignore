@@ -2,7 +2,7 @@ node_modules
 .next
 .env
 .env.local
+public/uploads/*
+!public/uploads/.gitkeep
 *.log
-dist
-.prisma
 tsconfig.tsbuildinfo
