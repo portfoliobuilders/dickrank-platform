@@ -1,0 +1,31 @@
+# .cursorrules
+rules:
+  - name: Adult Content Safety
+    description: All content must be 18+ verified
+    pattern: content|upload|media|image|video
+    action: verify ageVerification === true before processing
+  
+  - name: Encryption Required
+    description: PII must be encrypted
+    pattern: idDocument|verification|email|phone
+    action: use encryption at rest and in transit
+  
+  - name: Audit Trail
+    description: Log all sensitive actions
+    pattern: delete|update|create|upload
+    action: create audit log entry
+  
+  - name: Database Relations
+    description: Use proper Prisma relations
+    pattern: @relation
+    action: ensure onDelete: Cascade or onDelete: SetNull explicitly
+  
+  - name: Type Safety
+    description: All API routes must have Zod validation
+    pattern: route.ts|api/
+    action: include Zod schema validation
+  
+  - name: RLS Policies
+    description: Supabase RLS required for all tables
+    pattern: CREATE TABLE
+    action: add RLS policies for select, insert, update, delete
