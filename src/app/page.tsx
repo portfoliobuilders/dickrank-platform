@@ -1,5 +1,8 @@
-import { redirect } from "next/navigation";
-
 export default function HomePage() {
-  redirect("/rankings");
+  return (
+    <main>
+      <h1>DickRank</h1>
+      <p>This platform is for adults 18 and older.</p>
+    </main>
+  );
 }
