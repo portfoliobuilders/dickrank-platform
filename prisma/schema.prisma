@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  authUserId      String?  @unique
+  username        String   @unique
+  displayName     String?
+  bio             String?
+  location        String?
+  orientation     String?
+  interests       String[]
+  avatarUrl       String?
+  isCreator       Boolean  @default(false)
+  isVerified      Boolean  @default(false)
+  ageVerification Boolean  @default(false)
+  contentCount    Int      @default(0)
+  followerCount   Int      @default(0)
+  preferencesEnc  String?
+  schedule        Json     @default("[]")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  content       Content[]
+  likes         Like[]
+  following     Follow[]       @relation("UserFollows")
+  followers     Follow[]       @relation("UserFollowers")
+  subscriptions Subscription[] @relation("Subscriber")
+  subscribers   Subscription[] @relation("CreatorSubscriptions")
+  auditLogs     AuditLog[]
+  reports       Report[]
+
+  @@index([username])
+  @@index([isCreator])
+  @@index([ageVerification])
+  @@map("users")
+}
+
+model Content {
+  id           String        @id @default(cuid())
+  creatorId    String
+  creator      User          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  tags         String[]
+  category     String?
+  mediaUrl     String
+  thumbnailUrl String?
+  mediaType    MediaType
+  qualities    Json?
+  isPremium    Boolean       @default(false)
+  status       ContentStatus @default(PUBLISHED)
+  likeCount    Int           @default(0)
+  viewCount    Int           @default(0)
+  rating       Float         @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  likes   Like[]
+  reports Report[]
+
+  @@index([creatorId])
+  @@index([category])
+  @@index([status, createdAt])
+  @@index([isPremium])
+  @@index([likeCount])
+  @@map("content")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  contentId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, contentId])
+  @@index([contentId])
+  @@map("likes")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  follower    User     @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model Subscription {
+  id           String   @id @default(cuid())
+  subscriberId String
+  creatorId    String
+  status       String   @default("ACTIVE")
+  subscriber   User     @relation("Subscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  creator      User     @relation("CreatorSubscriptions", fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([subscriberId, creatorId])
+  @@index([creatorId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String?
+  contentId  String
+  reason     String
+  details    String?
+  reporter   User?    @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([reporterId, contentId])
+  @@index([contentId])
+  @@map("reports")
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  DELETED
+}
