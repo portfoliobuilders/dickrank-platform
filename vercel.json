@@ -1,0 +1,60 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "regions": ["iad1"],
+  "experimentalEnvironmentVariables": {
+    "database": ["DATABASE_URL", "DIRECT_URL", "DATABASE_SSL"],
+    "supabase": ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"],
+    "stripe": ["NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
+    "aws": [
+      "AWS_REGION",
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY",
+      "AWS_KMS_KEY_ID",
+      "AWS_S3_BUCKET",
+      "AWS_S3_BACKUP_BUCKET",
+      "CLOUDFRONT_DOMAIN",
+      "S3_ENDPOINT"
+    ],
+    "secrets": ["JWT_SECRET", "ENCRYPTION_KEY"],
+    "cache": ["REDIS_URL"],
+    "public": ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_APP_NAME"]
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://m.stripe.network; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.amazonaws.com https://*.cloudfront.net https://*.supabase.co; media-src 'self' blob: https://*.amazonaws.com https://*.cloudfront.net; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://m.stripe.network https://*.amazonaws.com https://*.cloudfront.net; frame-src https://js.stripe.com https://hooks.stripe.com https://m.stripe.network; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+        },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(self \"https://js.stripe.com\"), usb=(), interest-cohort=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/healthz", "destination": "/api/health" }
+  ],
+  "redirects": [
+    { "source": "/home", "destination": "/", "permanent": true },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.dickrank.online" }],
+      "destination": "https://dickrank.online/:path*",
+      "permanent": true
+    }
+  ]
+}
