@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Profile row keyed by the Supabase auth user id.
+/// Email and phone stay in Supabase Auth, not in this table.
+model User {
+  id           String         @id
+  ageVerified  Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  contents     Content[]
+  auditLogs    AuditLog[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Content {
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  category         ContentCategory
+  privacy          ContentPrivacy    @default(PUBLIC)
+  mediaKey         String            @unique
+  mediaUrl         String
+  thumbnailUrl     String?
+  contentType      String
+  fileSize         Int
+  moderationStatus ModerationStatus  @default(PENDING)
+  moderationJobId  String?
+  faceJobId        String?
+  moderationScores Json?
+  rejectionReason  String?
+  virusScanStatus  VirusScanStatus   @default(PENDING)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  reviews          ManualReview[]
+
+  @@index([userId])
+  @@index([moderationStatus])
+  @@index([category])
+  @@index([moderationJobId])
+  @@index([faceJobId])
+  @@map("content")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model ManualReview {
+  id        String   @id @default(cuid())
+  contentId String
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  reason    String
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([contentId])
+  @@map("manual_review")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@map("notification")
+}
+
+/// 26 adult categories. Nothing here is a minor or non-consensual category.
+enum ContentCategory {
+  AMATEUR
+  ANAL
+  BDSM
+  BLONDE
+  BLOWJOB
+  BRUNETTE
+  COSPLAY
+  CREAMPIE
+  CUMSHOT
+  FETISH
+  GROUP
+  HARDCORE
+  INTERRACIAL
+  LESBIAN
+  MASSAGE
+  MASTURBATION
+  MILF
+  ORAL
+  POV
+  REDHEAD
+  ROLEPLAY
+  ROMANTIC
+  SOLO
+  THREESOME
+  TOYS
+  VINTAGE
+}
+
+enum ContentPrivacy {
+  PUBLIC
+  PRIVATE
+  PREMIUM
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+  MANUAL_REVIEW
+}
+
+enum VirusScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  SKIPPED
+}
