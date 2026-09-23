@@ -1,84 +1,53 @@
-# DickRank.online
+# DickRank
 
-[![Vercel](https://img.shields.io/badge/Vercel-Deployed-black)](https://dickrank.online)
-[![Supabase](https://img.shields.io/badge/Supabase-Database-green)](https://supabase.com)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+DickRank is an adults-only site. People create an account, confirm their email, and send a government ID. A reviewer has to approve that ID before member areas open. Uploading an ID does not unlock the site by itself.
 
-> The premier platform for adult content discovery, ranking, and creator monetization.
+## What you need
 
-[Live Demo](https://dickrank.online) · [Documentation](./docs) · [API Reference](./docs/api.md)
+- Node.js 18 or newer
+- A PostgreSQL database (Supabase works)
+- A long random secret for sign-in cookies
 
-Overview
-
-DickRank.online is a community-driven platform for adult content ranking, creator monetization, and event management. Built with Next.js 14, TypeScript, Supabase, and Tailwind CSS.
-
-Features
-- 🏆 Content ranking & leaderboards
-- 💰 Creator subscription system
-- 🎉 Real-time matching & events
-- 🤖 AI-powered content moderation
-- 📊 Advanced analytics & insights
-
-Tech Stack
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Database**: Supabase (PostgreSQL)
-- **Styling**: Tailwind CSS + shadcn/ui
-- **Hosting**: Vercel
-- **Payments**: Stripe
-
-Getting Started
-
-Prerequisites
-- Node.js 18+
-- npm or pnpm
-- Supabase account
-
-Installation
+## Set up
 
 ```bash
-# Clone the repository
-git clone https://github.com/portfolioxtech/dickrank-platform.git
-cd dickrank-platform
-
-# Install dependencies
 npm install
+cp .env.example .env
+```
 
-# Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with your Supabase credentials
+Fill in `.env`:
 
-# Run development server
+- `DATABASE_URL` — the Postgres connection string
+- `PII_ENCRYPTION_KEY` — 32 random bytes, base64 (`openssl rand -base64 32`)
+- `PII_HASH_PEPPER` and `NEXTAUTH_SECRET` — long random strings
+- `NEXTAUTH_URL` — `http://localhost:3000` on your machine
+
+Then create the tables and start the site:
+
+```bash
+npx prisma migrate deploy
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser.
+Open http://localhost:3000.
 
-Project Structure
+In local development, the sign-up screen shows the email code, and the forgot-password screen shows a reset link. Those shortcuts are not included in a production build.
 
-```
-dickrank-platform/
-├── apps/
-│   └── web/                 # Next.js application
-├── packages/
-│   ├── ui/                  # Shared UI components
-│   └── database/            # Database schema & types
-├── docs/                    # Documentation
-└── scripts/                 # Utility scripts
-```
+## Sign-in flow
 
-Contributing
+1. **Account** — email, username, and password. The password is stored as a bcrypt hash. The email is encrypted.
+2. **Email** — 6-digit code.
+3. **Age** — front and back of a government ID, plus a live camera selfie. Files are encrypted, then a row is added to the review queue with status `PENDING`.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Member pages (`/dashboard`, `/upload`, `/creator`) stay closed until `ageVerification` is true. Public pages are `/`, `/login`, `/register`, and `/explore`.
 
-License
+## Manual test
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+1. Open `/register` and create an account. Confirm the email code.
+2. On the age step, try to continue without photos and confirm the form stops you.
+3. Open `/login` and use a wrong password. You should see an error, not a blank page.
+4. Use “Forgot password” and confirm the page does not reveal whether the email exists.
+5. While signed in but not approved, open `/dashboard`. You should land on `/verify-age`.
+6. Open `/explore` while signed out. “Open adult rankings” should send you to register. Signed in and not approved, it should show “Verify your age to continue.”
 
----
-
-**Note**: This is an adult content platform. All users must be 18+ and content must comply with applicable laws.
+Reload the site after pulling changes.
