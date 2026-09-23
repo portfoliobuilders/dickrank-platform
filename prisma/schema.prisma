@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  UPLOAD
+  DELETE
+  REPORT
+  PAYMENT
+  SETTINGS_CHANGE
+
+  @@map("audit_action")
+}
+
+enum DmcaStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  COUNTER_NOTIFIED
+  RESTORED
+
+  @@map("dmca_status")
+}
+
+enum ExportStatus {
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+  EXPIRED
+
+  @@map("export_status")
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+
+  @@map("notification_status")
+}
+
+model User {
+  id                  String    @id
+  emailEncrypted      String    @map("email_encrypted")
+  emailHash           String    @unique @map("email_hash")
+  displayName         String?   @map("display_name")
+  role                UserRole  @default(USER)
+  ageVerified         Boolean   @default(false) @map("age_verified")
+  stripeAccountId     String?   @map("stripe_account_id")
+  anonymizedAt        DateTime? @map("anonymized_at")
+  suspendedAt         DateTime? @map("suspended_at")
+  terminatedAt        DateTime? @map("terminated_at")
+  deletionRequestedAt DateTime? @map("deletion_requested_at")
+  deletionExecuteAt   DateTime? @map("deletion_execute_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  auditLogs          AuditLog[]
+  contents           Content[]
+  posts              Post[]
+  dmcaClaimsFiled    DmcaClaim[]    @relation("Claimant")
+  dmcaClaimsReceived DmcaClaim[]    @relation("ContentOwner")
+  exportJobs         DataExportJob[]
+  paymentRecords     PaymentRecord[]
+  notifications      Notification[]
+
+  @@index([deletionExecuteAt])
+  @@index([anonymizedAt])
+  @@map("users")
+}
+
+model AuditLog {
+  id            String      @id @default(cuid())
+  userId        String?     @map("user_id")
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action        AuditAction
+  resource      String
+  details       Json?
+  ipAddressHash String      @map("ip_address_hash")
+  userAgent     String?     @map("user_agent")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Content {
+  id           String   @id @default(cuid())
+  ownerId      String   @map("owner_id")
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  url          String
+  title        String?
+  storageKey   String?  @map("storage_key")
+  mediaKind    String?  @map("media_kind")
+  hidden       Boolean  @default(false)
+  hiddenReason String?  @map("hidden_reason")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  dmcaClaims DmcaClaim[]
+
+  @@index([ownerId])
+  @@index([url])
+  @@index([hidden])
+  @@map("contents")
+}
+
+model Post {
+  id         String   @id @default(cuid())
+  authorId   String   @map("author_id")
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body       String
+  anonymized Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([authorId])
+  @@map("posts")
+}
+
+model DmcaClaim {
+  id                      String     @id @default(cuid())
+  contentId               String?    @map("content_id")
+  content                 Content?   @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  contentUrl              String     @map("content_url")
+  description             String
+  contactInfoEncrypted    String     @map("contact_info_encrypted")
+  signature               Boolean
+  status                  DmcaStatus @default(PENDING_REVIEW)
+  claimantUserId          String?    @map("claimant_user_id")
+  claimant                User?      @relation("Claimant", fields: [claimantUserId], references: [id], onDelete: SetNull)
+  contentOwnerId          String?    @map("content_owner_id")
+  contentOwner            User?      @relation("ContentOwner", fields: [contentOwnerId], references: [id], onDelete: SetNull)
+  counterStatement        String?    @map("counter_statement")
+  counterContactEncrypted String?    @map("counter_contact_encrypted")
+  counterFiledAt          DateTime?  @map("counter_filed_at")
+  restoreAt               DateTime?  @map("restore_at")
+  lawsuitFiled            Boolean    @default(false) @map("lawsuit_filed")
+  ipAddressHash           String     @map("ip_address_hash")
+  reviewedAt              DateTime?  @map("reviewed_at")
+  reviewedById            String?    @map("reviewed_by_id")
+  createdAt               DateTime   @default(now()) @map("created_at")
+  updatedAt               DateTime   @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([contentOwnerId])
+  @@index([claimantUserId])
+  @@index([restoreAt])
+  @@index([ipAddressHash, createdAt])
+  @@map("dmca_claims")
+}
+
+model DataExportJob {
+  id           String       @id @default(cuid())
+  userId       String       @map("user_id")
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status       ExportStatus @default(QUEUED)
+  storageKey   String?      @map("storage_key")
+  error        String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  readyAt      DateTime?    @map("ready_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("data_export_jobs")
+}
+
+model PaymentRecord {
+  id           String   @id @default(cuid())
+  userId       String?  @map("user_id")
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  accountRef   String   @map("account_ref")
+  amountCents  Int      @map("amount_cents")
+  currency     String
+  description  String?
+  retainUntil  DateTime @map("retain_until")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([accountRef])
+  @@index([retainUntil])
+  @@map("payment_records")
+}
+
+model Notification {
+  id                   String             @id @default(cuid())
+  userId               String?            @map("user_id")
+  user                 User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  recipientEncrypted   String             @map("recipient_encrypted")
+  subject              String
+  body                 String
+  status               NotificationStatus @default(PENDING)
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  sentAt               DateTime?          @map("sent_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("notifications")
+}
