@@ -1,0 +1,36 @@
+{
+  "name": "dickrank-platform",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/lib/security-headers.test.ts src/lib/encrypted-blob.test.ts src/app/api/health/health.test.ts scripts/maintenance.test.ts",
+    "backup": "tsx scripts/backup-db.ts",
+    "cleanup": "tsx scripts/cleanup-temp.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.679.0",
+    "next": "^14.2.15",
+    "pg": "^8.13.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.15",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}
