@@ -1,58 +1,69 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { getBackendMode } from '@/lib/backend';
-import { ensureLocalDemoUser, getStore } from '@/lib/data';
-import { ApiError } from '@/lib/errors';
-import type { SessionUser } from '@/lib/types';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createClient } from "@supabase/supabase-js";
 
-export const SESSION_COOKIE = 'dr_session';
+import { prisma } from "@/lib/prisma";
 
-export async function getSessionUser(): Promise<SessionUser | null> {
-  const mode = getBackendMode();
-  if (mode === 'unconfigured') return null;
-  if (mode === 'memory') {
-    const id = cookies().get(SESSION_COOKIE)?.value;
-    if (!id) return null;
-    return getStore().getUserById(id);
+export class HttpError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
   }
-
-  const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  return getStore().getUserByAuthId(data.user.id);
 }
 
-export async function requirePageUser(nextPath = '/feed'): Promise<SessionUser> {
-  const user = await getSessionUser();
-  if (!user || user.ageVerification !== true) {
-    redirect(`/age-verification?next=${encodeURIComponent(nextPath)}`);
-  }
-  return user;
+export type SignedInUser = {
+  id: string;
+  username: string;
+  avatarUrl: string | null;
+  ageVerification: boolean;
+  verified: boolean;
+};
+
+function bearerToken(request: Request): string | null {
+  const header = request.headers.get("authorization");
+  if (!header?.startsWith("Bearer ")) return null;
+  const token = header.slice("Bearer ".length).trim();
+  return token.length > 0 ? token : null;
 }
 
-export async function requireApiUser(): Promise<SessionUser> {
-  if (getBackendMode() === 'unconfigured') {
-    throw new ApiError(503, 'Data backend is not configured');
-  }
-  const user = await getSessionUser();
-  if (!user) throw new ApiError(401, 'Sign in required');
-  if (user.ageVerification !== true) throw new ApiError(403, 'Age verification required');
-  return user;
-}
+/**
+ * Confirms the caller with Supabase, then loads the profile from our database.
+ * Age and verification flags come from the database, not from the browser.
+ */
+export async function getSignedInUser(request: Request): Promise<SignedInUser | null> {
+  const token = bearerToken(request);
+  if (!token) return null;
 
-export function setMemorySession(userId: string) {
-  cookies().set(SESSION_COOKIE, userId, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) {
+    throw new HttpError("Sign-in is not configured.", 500);
+  }
+
+  const supabase = createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data.user) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: data.user.id },
+    select: {
+      id: true,
+      username: true,
+      avatarUrl: true,
+      ageVerification: true,
+      verified: true,
+    },
+  });
+  return user;
 }
 
-export async function startLocalSession(): Promise<SessionUser> {
-  const existing = await getSessionUser();
-  if (existing) return existing;
-  return ensureLocalDemoUser();
+export async function requireVerifiedRater(request: Request): Promise<SignedInUser> {
+  const user = await getSignedInUser(request);
+  if (!user) throw new HttpError("Sign in to rate.", 401);
+  if (user.ageVerification !== true || user.verified !== true) {
+    throw new HttpError("Only verified 18+ members can rate content.", 403);
+  }
+  return user;
 }

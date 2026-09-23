@@ -2,19 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-}
-
 body {
-  min-height: 100vh;
-  background: #09090b;
-  color: #f4f4f5;
-}
-
-button,
-input,
-textarea,
-select {
-  font: inherit;
+  @apply bg-zinc-950 text-zinc-100 antialiased;
 }
