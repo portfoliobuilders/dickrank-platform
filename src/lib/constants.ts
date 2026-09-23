@@ -1,31 +1,33 @@
-export const PAGE_SIZE = 12;
-
-export const ORIENTATION_OPTIONS = [
-  { value: "straight", label: "Straight" },
-  { value: "gay", label: "Gay" },
-  { value: "lesbian", label: "Lesbian" },
-  { value: "bisexual", label: "Bisexual" },
-  { value: "pansexual", label: "Pansexual" },
-  { value: "queer", label: "Queer" },
-  { value: "asexual", label: "Asexual" },
-  { value: "other", label: "Other" },
-  { value: "undisclosed", label: "Prefer not to say" },
+export const CONTENT_TYPES = [
+  { id: "video", label: "Video" },
+  { id: "photo", label: "Photo" },
+  { id: "story", label: "Story" },
+  { id: "live", label: "Live" },
 ] as const;
 
-export const REPORT_REASONS = [
-  { value: "spam", label: "Spam" },
-  { value: "copyright", label: "Copyright" },
-  { value: "non_consensual", label: "Non-consensual" },
-  { value: "harassment", label: "Harassment" },
-  { value: "underage", label: "Someone appears under 18" },
-  { value: "other", label: "Other" },
+export const RATING_CATEGORY_OPTIONS = [
+  { id: "feel", label: "Feel" },
+  { id: "performance", label: "Performance" },
+  { id: "experience", label: "Experience" },
+  { id: "userExperience", label: "User experience" },
 ] as const;
 
-export const DEFAULT_PREFERENCES = {
-  privateAccount: false,
-  showActivity: true,
-  allowSubscriptions: true,
-  emailDigest: false,
-  notificationEmail: "",
-  contentWarnings: true,
-} as const;
+export const PERIOD_OPTIONS = [
+  { id: "today", label: "Today" },
+  { id: "week", label: "This Week" },
+  { id: "month", label: "This Month" },
+  { id: "all", label: "All Time" },
+] as const;
+
+export const LEADERBOARD_CACHE_TTL_SECONDS = 15 * 60;
+
+export function boardLabel(category: string): string {
+  if (category === "overall") return "overall";
+  if (category === "rising") return "rising stars";
+  if (category === "userExperience") return "user experience";
+  return category;
+}
+
+export function periodLabel(period: string): string {
+  return PERIOD_OPTIONS.find((option) => option.id === period)?.label ?? period;
+}

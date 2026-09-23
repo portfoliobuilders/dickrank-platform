@@ -1,13 +1,16 @@
-import { ContentCardSkeleton, ProfileHeaderSkeleton } from "@/components/ui/Skeleton";
+import { ContentGridSkeleton, ProfileHeaderSkeleton, Skeleton } from '@/components/ui/Skeleton';
 
 export default function CreatorLoading() {
   return (
-    <div className="space-y-8">
+    <div>
       <ProfileHeaderSkeleton />
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <ContentCardSkeleton key={index} />
-        ))}
+      <div className="mt-8 flex gap-2">
+        <Skeleton className="h-9 w-24 rounded-full" />
+        <Skeleton className="h-9 w-24 rounded-full" />
+        <Skeleton className="h-9 w-24 rounded-full" />
+      </div>
+      <div className="mt-6">
+        <ContentGridSkeleton />
       </div>
     </div>
   );

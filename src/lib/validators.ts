@@ -1,128 +1,97 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-const optionalText = (max: number) => z.string().trim().max(max);
+export const REPORT_REASONS = [
+  'spam',
+  'harassment',
+  'copyright',
+  'non_consensual',
+  'underage',
+  'other',
+] as const;
 
-const httpsUrl = z
-  .string()
-  .trim()
-  .url()
-  .refine((value) => value.startsWith("https://"), "Use an https URL");
-
-const labelText = z
-  .string()
-  .trim()
-  .min(1)
-  .max(40)
-  .regex(/^[\p{L}\p{N} _-]+$/u, "Use letters, numbers, spaces, _ or -");
-
-export const mediaQualitySchema = z.object({
-  label: z.string().trim().min(1).max(20),
-  src: httpsUrl,
-});
+export const ORIENTATIONS = [
+  'straight',
+  'gay',
+  'lesbian',
+  'bisexual',
+  'pansexual',
+  'asexual',
+  'queer',
+  'prefer_not_to_say',
+] as const;
 
 export const preferencesSchema = z.object({
-  privateAccount: z.boolean().default(false),
-  showActivity: z.boolean().default(true),
-  allowSubscriptions: z.boolean().default(true),
-  emailDigest: z.boolean().default(false),
-  notificationEmail: z.union([z.string().trim().email(), z.literal("")]).default(""),
-  contentWarnings: z.boolean().default(true),
+  showOnlineStatus: z.boolean(),
+  allowMessages: z.boolean(),
+  hideFromSearch: z.boolean(),
 });
 
-export const orientationSchema = z.enum([
-  "straight",
-  "gay",
-  "lesbian",
-  "bisexual",
-  "pansexual",
-  "queer",
-  "asexual",
-  "other",
-  "undisclosed",
-]);
+export const qualitySchema = z.object({
+  label: z.string().trim().min(1).max(20),
+  url: z.string().url().max(2000),
+});
 
-export const updateProfileSchema = z.object({
-  displayName: z.string().trim().min(1).max(80),
-  bio: optionalText(500).default(""),
-  location: optionalText(120).default(""),
-  orientation: orientationSchema,
-  interests: z.array(labelText).max(20).default([]),
-  avatarUrl: z.union([httpsUrl, z.literal("")]).optional(),
-  preferences: preferencesSchema,
+export const contentListQuerySchema = z.object({
+  category: z.string().trim().min(1).max(40).optional(),
+  tags: z.string().trim().max(200).optional(),
+  sort: z.enum(['newest', 'popular']).default('newest'),
+  page: z.coerce.number().int().min(1).max(500).default(1),
+  filter: z.enum(['following', 'popular', 'new', 'premium']).optional(),
+  creator: z.string().trim().min(1).max(32).optional(),
 });
 
 export const createContentSchema = z.object({
-  title: z.string().trim().min(1).max(140),
-  description: optionalText(5000).default(""),
-  tags: z.array(labelText).max(20).default([]),
-  category: z.string().trim().min(1).max(60),
-  mediaUrl: httpsUrl,
-  mediaType: z.enum(["image", "video"]),
-  thumbnailUrl: httpsUrl.optional(),
-  blurDataUrl: z
-    .string()
-    .max(20000)
-    .refine((value) => value.startsWith("data:image/"), "Blur placeholder must be an image data URL")
-    .optional(),
+  title: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(2000).optional(),
+  tags: z.array(z.string().trim().min(1).max(32)).max(10).default([]),
+  category: z.string().trim().min(1).max(40).optional(),
+  mediaUrl: z.string().url().max(2000),
+  thumbnailUrl: z.string().url().max(2000).optional(),
+  mediaType: z.enum(['IMAGE', 'VIDEO']),
+  qualities: z.array(qualitySchema).max(6).optional(),
   isPremium: z.boolean().default(false),
-  qualities: z.array(mediaQualitySchema).max(6).optional(),
+  status: z.enum(['DRAFT', 'PUBLISHED']).default('PUBLISHED'),
+  rating: z.number().min(0).max(5).optional(),
 });
 
 export const updateContentSchema = z
   .object({
-    title: z.string().trim().min(1).max(140).optional(),
-    description: optionalText(5000).optional(),
-    tags: z.array(labelText).max(20).optional(),
-    category: z.string().trim().min(1).max(60).optional(),
-    mediaUrl: httpsUrl.optional(),
-    mediaType: z.enum(["image", "video"]).optional(),
-    thumbnailUrl: httpsUrl.nullable().optional(),
-    blurDataUrl: z
-      .string()
-      .max(20000)
-      .refine((value) => value.startsWith("data:image/"), "Blur placeholder must be an image data URL")
-      .nullable()
-      .optional(),
+    title: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().max(2000).nullable().optional(),
+    tags: z.array(z.string().trim().min(1).max(32)).max(10).optional(),
+    category: z.string().trim().min(1).max(40).nullable().optional(),
+    thumbnailUrl: z.string().url().max(2000).nullable().optional(),
     isPremium: z.boolean().optional(),
-    qualities: z.array(mediaQualitySchema).max(6).nullable().optional(),
+    status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
+    qualities: z.array(qualitySchema).max(6).nullable().optional(),
   })
-  .refine((value) => Object.values(value).some((item) => item !== undefined), {
-    message: "No changes provided",
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'Provide at least one field to update',
   });
 
-export const listContentQuerySchema = z.object({
-  category: z.string().trim().min(1).max(60).optional(),
-  tags: z.array(labelText).max(20).optional(),
-  sort: z.enum(["newest", "popular"]).default("newest"),
-  page: z.coerce.number().int().min(1).default(1),
-  feed: z.enum(["following", "popular", "new", "premium"]).optional(),
-  creator: z
-    .string()
-    .trim()
-    .regex(/^[a-zA-Z0-9_]{3,30}$/, "Invalid username")
-    .optional(),
+export const updateProfileSchema = z.object({
+  displayName: z.string().trim().min(1).max(60),
+  bio: z.string().trim().max(500),
+  location: z.string().trim().max(80),
+  orientation: z.enum(ORIENTATIONS).nullable(),
+  interests: z.array(z.string().trim().min(1).max(32)).max(12),
+  preferences: preferencesSchema,
 });
-
-export const contentIdSchema = z.string().uuid();
-
-export const usernameSchema = z.string().trim().regex(/^[a-zA-Z0-9_]{3,30}$/, "Invalid username");
 
 export const reportSchema = z.object({
-  reason: z.enum(["spam", "copyright", "non_consensual", "harassment", "underage", "other"]),
-  details: z.string().trim().max(1000).optional(),
+  reason: z.enum(REPORT_REASONS),
+  details: z.string().trim().max(500).optional(),
 });
 
-export const ageVerificationSchema = z.object({
-  confirmedAdult: z.literal(true, {
-    errorMap: () => ({ message: "Confirm that you are 18 or older" }),
-  }),
-});
+export const idParamSchema = z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9_-]+$/);
+export const usernameSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(32)
+  .regex(/^[a-zA-Z0-9_]+$/);
 
-export function parseTagParam(value: string | null) {
-  if (!value) return undefined;
-  const tags = value
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-  return tags.length > 0 ? tags : undefined;
-}
+export type CreateContentInput = z.infer<typeof createContentSchema>;
+export type UpdateContentInput = z.infer<typeof updateContentSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type ContentListQuery = z.infer<typeof contentListQuerySchema>;

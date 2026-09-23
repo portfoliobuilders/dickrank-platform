@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// Member profile. `id` matches the Supabase auth user id.
+model User {
+  id                    String   @id
+  username              String   @unique
+  avatarUrl             String?
+  ageVerification       Boolean  @default(false)
+  verified              Boolean  @default(false)
+  healthVerified        Boolean  @default(false)
+  verifiedPartnerCount  Int      @default(0)
+  activityPoints        Int      @default(0)
+  communityEngagement   Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  content            Content[]
+  ratings            Rating[]
+  leaderboardEntries LeaderboardEntry[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+
+  @@index([verified, ageVerification])
+}
+
+model Content {
+  id            String   @id @default(cuid())
+  creatorId     String
+  creator       User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  title         String
+  type          String
+  category      String
+  qualityScore  Float    @default(0)
+  ratingAverage Float    @default(0)
+  ratingCount   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ratings Rating[]
+
+  @@index([creatorId])
+  @@index([type])
+  @@index([category])
+  @@index([ratingAverage])
+}
+
+model Rating {
+  id             String   @id @default(cuid())
+  contentId      String
+  content        Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  overall        Float
+  feel           Float
+  performance    Float
+  experience     Float
+  userExperience Float
+  weightedScore  Float
+  pros           String   @default("")
+  cons           String   @default("")
+  review         String   @default("")
+  anonymous      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([contentId, userId])
+  @@index([contentId, createdAt])
+  @@index([userId])
+}
+
+model LeaderboardEntry {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category        String
+  period          String
+  score           Float
+  rank            Int
+  previousRank    Int?
+  cronInitialized Boolean  @default(false)
+  trend           String   @default("same")
+  stats           Json
+  calculatedAt    DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, category, period])
+  @@index([category, period, score])
+  @@index([category, period, rank])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}

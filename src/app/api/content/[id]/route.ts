@@ -1,50 +1,44 @@
-import { NextResponse } from "next/server";
-import { getContent, softDeleteContent, updateContent } from "@/lib/content";
-import { toErrorResponse } from "@/lib/errors";
-import { requireCreator, requireVerifiedUser } from "@/lib/session";
-import { contentIdSchema, updateContentSchema } from "@/lib/validators";
+import { requireApiUser } from '@/lib/auth';
+import { getStore } from '@/lib/data';
+import { ApiError } from '@/lib/errors';
+import { handle, json } from '@/lib/http';
+import { idParamSchema, updateContentSchema } from '@/lib/validators';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-type Context = { params: { id: string } };
-
-export async function GET(_request: Request, { params }: Context) {
-  try {
-    const id = contentIdSchema.safeParse(params.id);
-    if (!id.success) return NextResponse.json({ error: "Invalid content id" }, { status: 400 });
-    const auth = await requireVerifiedUser();
-    const result = await getContent(auth.supabase, auth.profile, id.data);
-    return NextResponse.json(result);
-  } catch (error) {
-    return toErrorResponse(error);
-  }
+function assertAdult(ageVerification: boolean) {
+  if (ageVerification !== true) throw new ApiError(403, 'Age verification required');
 }
 
-export async function PUT(request: Request, { params }: Context) {
-  try {
-    const id = contentIdSchema.safeParse(params.id);
-    if (!id.success) return NextResponse.json({ error: "Invalid content id" }, { status: 400 });
-    const auth = await requireCreator();
-    const body = await request.json().catch(() => null);
-    const parsed = updateContentSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid content", issues: parsed.error.flatten() }, { status: 400 });
-    }
-    const content = await updateContent(auth.supabase, auth.profile, id.data, parsed.data);
-    return NextResponse.json(content);
-  } catch (error) {
-    return toErrorResponse(error);
-  }
+export async function GET(_request: Request, { params }: { params: { id: string } }) {
+  return handle(async () => {
+    const user = await requireApiUser();
+    assertAdult(user.ageVerification);
+    const id = idParamSchema.parse(params.id);
+    const content = await getStore().getContent(id, user.id);
+    if (!content) throw new ApiError(404, 'Content not found');
+    return json(content);
+  });
 }
 
-export async function DELETE(_request: Request, { params }: Context) {
-  try {
-    const id = contentIdSchema.safeParse(params.id);
-    if (!id.success) return NextResponse.json({ error: "Invalid content id" }, { status: 400 });
-    const auth = await requireCreator();
-    const result = await softDeleteContent(auth.supabase, auth.profile, id.data);
-    return NextResponse.json(result);
-  } catch (error) {
-    return toErrorResponse(error);
-  }
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
+  return handle(async () => {
+    const user = await requireApiUser();
+    assertAdult(user.ageVerification);
+    const id = idParamSchema.parse(params.id);
+    const input = updateContentSchema.parse(await request.json());
+    const content = await getStore().updateContent(user.id, id, input);
+    return json(content);
+  });
+}
+
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  return handle(async () => {
+    const user = await requireApiUser();
+    assertAdult(user.ageVerification);
+    const id = idParamSchema.parse(params.id);
+    await getStore().softDeleteContent(user.id, id);
+    return json({ ok: true, status: 'DELETED' as const });
+  });
 }

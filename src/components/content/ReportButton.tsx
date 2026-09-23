@@ -1,53 +1,70 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { REPORT_REASONS } from "@/lib/constants";
+import { useState } from 'react';
+import { REPORT_REASONS } from '@/lib/validators';
+
+const LABELS: Record<(typeof REPORT_REASONS)[number], string> = {
+  spam: 'Spam',
+  harassment: 'Harassment',
+  copyright: 'Copyright',
+  non_consensual: 'Non-consensual',
+  underage: 'Someone appears to be under 18',
+  other: 'Other',
+};
 
 export function ReportButton({ contentId }: { contentId: string }) {
   const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState<(typeof REPORT_REASONS)[number]["value"]>("spam");
-  const [details, setDetails] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [reason, setReason] = useState<(typeof REPORT_REASONS)[number]>('spam');
+  const [details, setDetails] = useState('');
+  const [message, setMessage] = useState('');
   const [pending, setPending] = useState(false);
 
-  async function submit() {
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
     setPending(true);
-    setMessage(null);
+    setMessage('');
     try {
       const response = await fetch(`/api/content/${contentId}/report`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason, details }),
       });
-      const body = (await response.json().catch(() => ({}))) as { error?: string; duplicate?: boolean };
-      if (!response.ok) throw new Error(body.error || "Could not send report");
-      setMessage(body.duplicate ? "You already reported this." : "Report sent. Thank you.");
+      const body = (await response.json()) as { alreadyReported?: boolean; error?: string };
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = '/age-verification';
+        return;
+      }
+      if (!response.ok) throw new Error(body.error || 'Could not send report');
+      setMessage(body.alreadyReported ? 'You already reported this.' : 'Report submitted.');
       setOpen(false);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not send report");
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : 'Could not send report');
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <div className="space-y-2">
-      <Button variant="danger" onClick={() => setOpen((value) => !value)}>
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="rounded-full bg-zinc-800 px-4 py-2 text-sm text-zinc-100 hover:bg-zinc-700"
+      >
         Report
-      </Button>
+      </button>
       {open ? (
-        <div className="space-y-3 rounded-2xl border border-white/10 bg-zinc-900 p-3">
+        <form onSubmit={(event) => void submit(event)} className="mt-3 space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-3">
           <label className="block text-sm text-zinc-300">
             Reason
             <select
-              className="mt-1 w-full rounded-lg bg-zinc-800 px-3 py-2 text-white"
               value={reason}
-              onChange={(event) => setReason(event.target.value as typeof reason)}
+              onChange={(event) => setReason(event.target.value as (typeof REPORT_REASONS)[number])}
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
             >
-              {REPORT_REASONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              {REPORT_REASONS.map((value) => (
+                <option key={value} value={value}>
+                  {LABELS[value]}
                 </option>
               ))}
             </select>
@@ -55,19 +72,23 @@ export function ReportButton({ contentId }: { contentId: string }) {
           <label className="block text-sm text-zinc-300">
             Details
             <textarea
-              className="mt-1 w-full rounded-lg bg-zinc-800 px-3 py-2 text-white"
-              rows={3}
-              maxLength={1000}
               value={details}
               onChange={(event) => setDetails(event.target.value)}
+              maxLength={500}
+              rows={3}
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
             />
           </label>
-          <Button onClick={() => void submit()} disabled={pending}>
-            {pending ? "Sending" : "Submit report"}
-          </Button>
-        </div>
+          <button
+            type="submit"
+            disabled={pending}
+            className="rounded-full bg-rose-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          >
+            {pending ? 'Sending…' : 'Submit report'}
+          </button>
+        </form>
       ) : null}
-      {message ? <p className="text-xs text-zinc-300">{message}</p> : null}
+      {message ? <p className="mt-2 text-sm text-zinc-300">{message}</p> : null}
     </div>
   );
 }

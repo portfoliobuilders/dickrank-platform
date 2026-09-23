@@ -1,41 +1,31 @@
-import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
-import { ProfileHeader } from "@/components/profile/ProfileHeader";
-import { ProfileTabs } from "@/components/profile/ProfileTabs";
-import { listContent } from "@/lib/content";
-import { getPublicProfile, listSchedule } from "@/lib/profiles";
-import { getViewer } from "@/lib/session";
-import { usernameSchema } from "@/lib/validators";
+import { notFound } from 'next/navigation';
+import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { ProfileTabs } from '@/components/profile/ProfileTabs';
+import { requirePageUser } from '@/lib/auth';
+import { getStore } from '@/lib/data';
+import { usernameSchema } from '@/lib/validators';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: { username: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: { username: string } }) {
   return { title: `@${params.username} · DickRank` };
 }
 
 export default async function CreatorProfilePage({ params }: { params: { username: string } }) {
-  const username = usernameSchema.safeParse(params.username);
-  if (!username.success) notFound();
-
-  const viewer = await getViewer();
-  if (!viewer.profile?.ageVerified) redirect("/verify-age");
-
-  const profile = await getPublicProfile(viewer.supabase, username.data, viewer.profile.id);
+  const parsed = usernameSchema.safeParse(decodeURIComponent(params.username));
+  if (!parsed.success) notFound();
+  const username = parsed.data;
+  const user = await requirePageUser(`/creator/${username}`);
+  if (user.ageVerification !== true) {
+    return null;
+  }
+  const profile = await getStore().getCreator(username, user.id);
   if (!profile) notFound();
 
-  const [content, schedule] = await Promise.all([
-    listContent(viewer.supabase, viewer.profile, {
-      creator: profile.username,
-      page: 1,
-      sort: "newest",
-    }),
-    listSchedule(viewer.supabase, profile.username),
-  ]);
-
   return (
-    <div>
+    <main>
       <ProfileHeader profile={profile} />
-      <ProfileTabs profile={profile} content={content.items} schedule={schedule} />
-    </div>
+      <ProfileTabs profile={profile} />
+    </main>
   );
 }

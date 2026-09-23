@@ -1,24 +1,19 @@
-import { NextResponse } from "next/server";
-import { reportContent } from "@/lib/content";
-import { toErrorResponse } from "@/lib/errors";
-import { requireVerifiedUser } from "@/lib/session";
-import { contentIdSchema, reportSchema } from "@/lib/validators";
+import { requireApiUser } from '@/lib/auth';
+import { getStore } from '@/lib/data';
+import { ApiError } from '@/lib/errors';
+import { handle, json } from '@/lib/http';
+import { idParamSchema, reportSchema } from '@/lib/validators';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
-  try {
-    const id = contentIdSchema.safeParse(params.id);
-    if (!id.success) return NextResponse.json({ error: "Invalid content id" }, { status: 400 });
-    const auth = await requireVerifiedUser();
-    const body = await request.json().catch(() => null);
-    const parsed = reportSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid report", issues: parsed.error.flatten() }, { status: 400 });
-    }
-    const result = await reportContent(auth.supabase, auth.profile, id.data, parsed.data.reason, parsed.data.details);
-    return NextResponse.json(result);
-  } catch (error) {
-    return toErrorResponse(error);
-  }
+  return handle(async () => {
+    const user = await requireApiUser();
+    if (user.ageVerification !== true) throw new ApiError(403, 'Age verification required');
+    const id = idParamSchema.parse(params.id);
+    const input = reportSchema.parse(await request.json());
+    const result = await getStore().reportContent(user.id, id, input.reason, input.details);
+    return json(result);
+  });
 }

@@ -1,15 +1,26 @@
 /** @type {import('next').NextConfig} */
+const isDev = process.env.NODE_ENV !== 'production';
+
 const nextConfig = {
   reactStrictMode: true,
-  poweredByHeader: false,
   async headers() {
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} https://*.stripe.com https://*.stripe.network`,
+      "frame-src https://*.stripe.com https://*.stripe.network",
+      "connect-src 'self' https://*.stripe.com https://api.stripe.com https://*.supabase.co",
+      "img-src 'self' data: https://*.stripe.com",
+      "style-src 'self' 'unsafe-inline'",
+      "worker-src blob:",
+    ].join('; ');
+
     return [
       {
-        source: "/:path*",
+        source: '/:path*',
         headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "X-Frame-Options", value: "DENY" },
+          { key: 'Content-Security-Policy', value: csp },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
         ],
       },
     ];

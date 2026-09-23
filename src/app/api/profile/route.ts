@@ -1,32 +1,28 @@
-import { NextResponse } from "next/server";
-import { toErrorResponse } from "@/lib/errors";
-import { getOwnProfile, updateOwnProfile } from "@/lib/profiles";
-import { requireVerifiedUser } from "@/lib/session";
-import { updateProfileSchema } from "@/lib/validators";
+import { requireApiUser } from '@/lib/auth';
+import { getStore } from '@/lib/data';
+import { ApiError } from '@/lib/errors';
+import { handle, json } from '@/lib/http';
+import { updateProfileSchema } from '@/lib/validators';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  try {
-    const auth = await requireVerifiedUser();
-    const profile = await getOwnProfile(auth.supabase, auth.profile);
-    return NextResponse.json(profile);
-  } catch (error) {
-    return toErrorResponse(error);
-  }
+  return handle(async () => {
+    const user = await requireApiUser();
+    if (user.ageVerification !== true) throw new ApiError(403, 'Age verification required');
+    const profile = await getStore().getEditableProfile(user.id);
+    if (!profile) throw new ApiError(404, 'Profile not found');
+    return json(profile);
+  });
 }
 
 export async function PUT(request: Request) {
-  try {
-    const auth = await requireVerifiedUser();
-    const body = await request.json().catch(() => null);
-    const parsed = updateProfileSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid profile", issues: parsed.error.flatten() }, { status: 400 });
-    }
-    const profile = await updateOwnProfile(auth.supabase, auth.profile, parsed.data);
-    return NextResponse.json(profile);
-  } catch (error) {
-    return toErrorResponse(error);
-  }
+  return handle(async () => {
+    const user = await requireApiUser();
+    if (user.ageVerification !== true) throw new ApiError(403, 'Age verification required');
+    const input = updateProfileSchema.parse(await request.json());
+    const profile = await getStore().updateProfile(user.id, input);
+    return json(profile);
+  });
 }
