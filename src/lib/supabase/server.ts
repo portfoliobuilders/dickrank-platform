@@ -1,12 +1,15 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-export function createSupabaseServerClient() {
+export function isAuthConfigured(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
+export function createSupabaseServer() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
-    throw new Error('Supabase is not configured');
+    throw new Error('Supabase anon key is not configured');
   }
 
   const cookieStore = cookies();
@@ -19,27 +22,16 @@ export function createSupabaseServerClient() {
         try {
           cookieStore.set({ name, value, ...options });
         } catch {
-          // Server Components cannot write cookies. Route handlers can.
+          // Server Components cannot always write cookies. Middleware can refresh sessions later.
         }
       },
       remove(name: string, options: CookieOptions) {
         try {
           cookieStore.set({ name, value: '', ...options });
         } catch {
-          // Server Components cannot write cookies. Route handlers can.
+          // Ignore when the cookie store is read-only.
         }
       },
     },
-  });
-}
-
-export function createServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error('Supabase service role is not configured');
-  }
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
   });
 }

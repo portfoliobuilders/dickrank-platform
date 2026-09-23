@@ -1,11 +1,12 @@
-import type { ReactNode } from "react";
+import type { Metadata } from 'next';
+import './globals.css';
 
-export const metadata = {
-  title: "DickRank",
-  description: "Adults 18 and older only.",
+export const metadata: Metadata = {
+  title: 'DickRank',
+  description: 'Creator subscriptions, tips, and payouts for adults 18+.',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>{children}</body>
