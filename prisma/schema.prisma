@@ -9,26 +9,46 @@ datasource db {
 }
 
 /// Member profile. `id` matches the Supabase auth user id.
+/// Privacy fields are added for account export and deletion.
 model User {
-  id                    String   @id
-  username              String   @unique
-  avatarUrl             String?
-  ageVerification       Boolean  @default(false)
-  verified              Boolean  @default(false)
-  healthVerified        Boolean  @default(false)
-  verifiedPartnerCount  Int      @default(0)
-  activityPoints        Int      @default(0)
-  communityEngagement   Int      @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                   String    @id
+  username             String    @unique
+  avatarUrl            String?
+  ageVerification      Boolean   @default(false)
+  ageVerified          Boolean   @default(false)
+  verified             Boolean   @default(false)
+  healthVerified       Boolean   @default(false)
+  verifiedPartnerCount Int       @default(0)
+  activityPoints       Int       @default(0)
+  communityEngagement  Int       @default(0)
+  emailEncrypted       String?
+  emailHash            String?   @unique
+  displayName          String?
+  role                 String    @default("USER")
+  stripeAccountId      String?
+  anonymizedAt         DateTime?
+  suspendedAt          DateTime?
+  terminatedAt         DateTime?
+  deletionRequestedAt  DateTime?
+  deletionExecuteAt    DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   content            Content[]
   ratings            Rating[]
   leaderboardEntries LeaderboardEntry[]
   notifications      Notification[]
   auditLogs          AuditLog[]
+  posts              Post[]
+  dmcaClaimsFiled    DmcaClaim[]      @relation("Claimant")
+  dmcaClaimsReceived DmcaClaim[]      @relation("ContentOwner")
+  exportJobs         DataExportJob[]
+  paymentRecords     PaymentRecord[]
+  emailOutbox        EmailOutbox[]
 
   @@index([verified, ageVerification])
+  @@index([deletionExecuteAt])
+  @@index([anonymizedAt])
 }
 
 model Content {
@@ -41,15 +61,23 @@ model Content {
   qualityScore  Float    @default(0)
   ratingAverage Float    @default(0)
   ratingCount   Int      @default(0)
+  url           String   @default("")
+  hidden        Boolean  @default(false)
+  hiddenReason  String?
+  storageKey    String?
+  mediaKind     String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  ratings Rating[]
+  ratings    Rating[]
+  dmcaClaims DmcaClaim[]
 
   @@index([creatorId])
   @@index([type])
   @@index([category])
   @@index([ratingAverage])
+  @@index([url])
+  @@index([hidden])
 }
 
 model Rating {
@@ -111,16 +139,117 @@ model Notification {
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action     String
-  entityType String
-  entityId   String?
-  metadata   Json?
-  createdAt  DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action        String
+  entityType    String
+  entityId      String?
+  metadata      Json?
+  resource      String?
+  details       Json?
+  ipAddressHash String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+}
+
+model Post {
+  id         String   @id @default(cuid())
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body       String
+  anonymized Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([authorId])
+  @@map("posts")
+}
+
+model DmcaClaim {
+  id                      String    @id @default(cuid())
+  contentId               String?
+  content                 Content?  @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  contentUrl              String
+  description             String
+  contactInfoEncrypted    String
+  signature               Boolean
+  status                  String    @default("PENDING_REVIEW")
+  claimantUserId          String?
+  claimant                User?     @relation("Claimant", fields: [claimantUserId], references: [id], onDelete: SetNull)
+  contentOwnerId          String?
+  contentOwner            User?     @relation("ContentOwner", fields: [contentOwnerId], references: [id], onDelete: SetNull)
+  counterStatement        String?
+  counterContactEncrypted String?
+  counterFiledAt          DateTime?
+  restoreAt               DateTime?
+  lawsuitFiled            Boolean   @default(false)
+  ipAddressHash           String
+  reviewedAt              DateTime?
+  reviewedById            String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([status])
+  @@index([contentOwnerId])
+  @@index([claimantUserId])
+  @@index([restoreAt])
+  @@index([ipAddressHash, createdAt])
+  @@map("dmca_claims")
+}
+
+model DataExportJob {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status     String    @default("QUEUED")
+  storageKey String?
+  error      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  readyAt    DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@map("data_export_jobs")
+}
+
+model PaymentRecord {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  accountRef  String
+  amountCents Int
+  currency    String
+  description String?
+  retainUntil DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([accountRef])
+  @@index([retainUntil])
+  @@map("payment_records")
+}
+
+model EmailOutbox {
+  id                 String    @id @default(cuid())
+  userId             String?
+  user               User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  recipientEncrypted String
+  subject            String
+  body               String
+  status             String    @default("PENDING")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  sentAt             DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@map("email_outbox")
 }

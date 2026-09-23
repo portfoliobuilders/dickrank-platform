@@ -6,15 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/lib/**/*.test.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.670.0",
+    "@aws-sdk/s3-request-presigner": "^3.670.0",
+    "@prisma/client": "^5.22.0",
     "@stripe/connect-js": "^3.3.31",
     "@stripe/react-connect-js": "^3.3.31",
     "@stripe/react-stripe-js": "^3.7.0",
     "@stripe/stripe-js": "^7.4.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
+    "jszip": "^3.10.1",
     "next": "^14.2.28",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -28,7 +34,9 @@
     "@types/react-dom": "^18.3.6",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
+    "prisma": "^5.22.0",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.1",
     "typescript": "^5.8.3"
   }
 }

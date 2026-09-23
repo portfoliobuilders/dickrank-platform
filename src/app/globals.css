@@ -2,8 +2,121 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
+.compliance {
+  --ink: #1c1917;
+  --muted: #57534e;
+  --line: #d6d3d1;
+  --paper: #fafaf9;
+  --card: #ffffff;
+  --accent: #1d4ed8;
+  --danger: #b91c1c;
+  --ok: #166534;
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.5;
+  font-family: "Segoe UI", Helvetica, Arial, sans-serif;
   min-height: 100vh;
-  background: #09090b;
-  color: #fafafa;
+}
+
+.compliance a { color: var(--accent); }
+
+.compliance .wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.compliance header.site {
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+}
+
+.compliance header.site .wrap {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.compliance nav { display: flex; gap: 16px; flex-wrap: wrap; }
+.compliance h1 { font-size: 2rem; line-height: 1.2; margin-bottom: 8px; }
+.compliance h2 { font-size: 1.25rem; margin-top: 2rem; }
+
+.compliance .card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.compliance label { display: block; font-weight: 600; margin-top: 12px; }
+.compliance input[type="checkbox"] { width: auto; margin-right: 8px; }
+
+.compliance input,
+.compliance select,
+.compliance textarea {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  background: white;
+  color: var(--ink);
+}
+
+.compliance textarea { min-height: 120px; }
+
+.compliance button,
+.compliance .button {
+  display: inline-block;
+  margin-top: 12px;
+  margin-right: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: white;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.compliance button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.compliance button.danger { background: var(--danger); border-color: var(--danger); }
+.compliance button.ghost,
+.compliance a.ghost { background: white; color: var(--ink); }
+
+.compliance .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+.compliance .tabs a {
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: var(--ink);
+}
+.compliance .tabs a[aria-current="page"] { background: var(--ink); color: white; }
+
+.compliance .table-wrap { overflow-x: auto; }
+.compliance table { width: 100%; border-collapse: collapse; background: white; }
+.compliance th,
+.compliance td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.compliance th { font-size: 0.85rem; color: var(--muted); }
+.compliance .muted { color: var(--muted); }
+.compliance .banner { padding: 12px 14px; border-radius: 8px; background: #e0e7ff; }
+.compliance .banner.error { background: #fee2e2; }
+.compliance .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: end; }
+.compliance code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85em; }
+.compliance .preview { max-width: 240px; border-radius: 8px; background: #111; }
+
+@media (max-width: 640px) {
+  .compliance h1 { font-size: 1.6rem; }
+  .compliance header.site .wrap { align-items: flex-start; flex-direction: column; }
 }

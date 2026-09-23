@@ -4,6 +4,8 @@ node_modules
 .env.local
 .env*.local
 *.tsbuildinfo
+*.db
 omni-ledger.db
 dist
 coverage
+.prisma
