@@ -1,4 +1,3 @@
-import { DmcaStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decryptPii, encryptPii, hashIp } from "@/lib/crypto";
 import { notify } from "@/lib/notify";
@@ -11,7 +10,7 @@ import {
 } from "@/lib/retention";
 import { HttpError } from "@/lib/http";
 
-const ACTIVE_HIDE_STATUSES: DmcaStatus[] = ["PENDING_REVIEW", "APPROVED", "COUNTER_NOTIFIED"];
+const ACTIVE_HIDE_STATUSES = ["PENDING_REVIEW", "APPROVED", "COUNTER_NOTIFIED"];
 
 export async function submitDmcaClaim(input: {
   contentUrl: string;
@@ -54,7 +53,7 @@ export async function submitDmcaClaim(input: {
         signature: input.signature,
         status: "PENDING_REVIEW",
         claimantUserId: input.claimantUserId,
-        contentOwnerId: primary?.ownerId ?? null,
+        contentOwnerId: primary?.creatorId ?? null,
         ipAddressHash,
       },
     });
@@ -70,6 +69,8 @@ export async function submitDmcaClaim(input: {
       data: {
         userId: input.claimantUserId,
         action: "REPORT",
+        entityType: "dmca",
+        entityId: created.id,
         resource: `dmca:${created.id}`,
         details: { event: "dmca_claim", contentFound: matches.length > 0 },
         ipAddressHash,
@@ -81,8 +82,8 @@ export async function submitDmcaClaim(input: {
   });
 
   if (primary) {
-    const owner = await prisma.user.findUnique({ where: { id: primary.ownerId } });
-    if (owner && !owner.anonymizedAt) {
+    const owner = await prisma.user.findUnique({ where: { id: primary.creatorId } });
+    if (owner?.emailEncrypted && !owner.anonymizedAt) {
       try {
         const email = decryptPii(owner.emailEncrypted);
         await notify({
@@ -274,7 +275,7 @@ export async function reviewDmcaClaim(input: {
           },
         }),
         prisma.content.updateMany({
-          where: { ownerId: claim.contentOwnerId },
+          where: { creatorId: claim.contentOwnerId },
           data: { hidden: true, hiddenReason: "repeat_infringer" },
         }),
       ]);
@@ -314,7 +315,7 @@ export async function restoreReadyClaims(now = new Date()) {
       ? await prisma.user.findUnique({ where: { id: claim.contentOwnerId } })
       : null;
     try {
-      if (owner && !owner.anonymizedAt) {
+      if (owner?.emailEncrypted && !owner.anonymizedAt) {
         await notify({
           userId: owner.id,
           email: decryptPii(owner.emailEncrypted),
@@ -335,11 +336,11 @@ export async function restoreReadyClaims(now = new Date()) {
   return restored;
 }
 
-export async function listDmcaClaims(status?: DmcaStatus) {
+export async function listDmcaClaims(status?: string) {
   return prisma.dmcaClaim.findMany({
     where: status ? { status } : undefined,
     include: {
-      content: { select: { id: true, title: true, url: true, mediaKind: true, hidden: true, ownerId: true } },
+      content: { select: { id: true, title: true, url: true, mediaKind: true, hidden: true, creatorId: true } },
     },
     orderBy: { createdAt: "desc" },
     take: 100,

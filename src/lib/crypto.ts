@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from "crypto";
 
 const BLOCKED_DETAIL_KEY =
   /email|phone|contact|ipaddress|ip_address|ssn|password|token|secret|signature|cookie|authorization/i;
@@ -12,15 +12,16 @@ function hashSecret(): string {
 }
 
 function encryptionKey(): Buffer {
+  const secret = process.env.ENCRYPTION_KEY;
+  if (secret && secret.length >= 32) {
+    return scryptSync(secret, "dickrank-pii-v1", 32);
+  }
   const raw = process.env.PII_ENCRYPTION_KEY;
-  if (!raw) {
-    throw new Error("PII_ENCRYPTION_KEY is required");
+  if (raw) {
+    const key = Buffer.from(raw, "base64");
+    if (key.length === 32) return key;
   }
-  const key = Buffer.from(raw, "base64");
-  if (key.length !== 32) {
-    throw new Error("PII_ENCRYPTION_KEY must be 32 bytes, base64-encoded");
-  }
-  return key;
+  throw new Error("ENCRYPTION_KEY (32+ characters) or PII_ENCRYPTION_KEY (32 bytes, base64) is required");
 }
 
 export function hashValue(purpose: "ip" | "email", value: string): string {
@@ -40,28 +41,28 @@ export function encryptPii(plaintext: string): string {
   const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
   const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
-  return `${iv.toString("base64")}.${tag.toString("base64")}.${encrypted.toString("base64")}`;
+  return `v1:${iv.toString("base64url")}:${tag.toString("base64url")}:${encrypted.toString("base64url")}`;
 }
 
 export function decryptPii(payload: string): string {
-  const [ivPart, tagPart, dataPart] = payload.split(".");
-  if (!ivPart || !tagPart || !dataPart) {
-    throw new Error("Encrypted value is malformed");
+  if (payload.startsWith("v1:")) {
+    const [, ivPart, tagPart, dataPart] = payload.split(":");
+    if (!ivPart || !tagPart || !dataPart) throw new Error("Unrecognized encrypted value");
+    const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(ivPart, "base64url"));
+    decipher.setAuthTag(Buffer.from(tagPart, "base64url"));
+    return Buffer.concat([decipher.update(Buffer.from(dataPart, "base64url")), decipher.final()]).toString("utf8");
   }
+
+  const [ivPart, tagPart, dataPart] = payload.split(".");
+  if (!ivPart || !tagPart || !dataPart) throw new Error("Unrecognized encrypted value");
   const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(ivPart, "base64"));
   decipher.setAuthTag(Buffer.from(tagPart, "base64"));
-  const decrypted = Buffer.concat([
-    decipher.update(Buffer.from(dataPart, "base64")),
-    decipher.final(),
-  ]);
-  return decrypted.toString("utf8");
+  return Buffer.concat([decipher.update(Buffer.from(dataPart, "base64")), decipher.final()]).toString("utf8");
 }
 
 export function sanitizeDetails(details: unknown): Record<string, unknown> | undefined {
   if (details == null) return undefined;
-  if (typeof details !== "object" || Array.isArray(details)) {
-    return undefined;
-  }
+  if (typeof details !== "object" || Array.isArray(details)) return undefined;
   const output: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(details as Record<string, unknown>)) {
     if (BLOCKED_DETAIL_KEY.test(key)) continue;

@@ -1,9 +1,10 @@
-import { DmcaStatus } from "@prisma/client";
 import { claimantContact, listDmcaClaims } from "@/lib/dmca";
+
+type ClaimStatus = "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "COUNTER_NOTIFIED" | "RESTORED";
 
 export const dynamic = "force-dynamic";
 
-const TABS: Array<{ status: DmcaStatus; label: string }> = [
+const TABS: Array<{ status: ClaimStatus; label: string }> = [
   { status: "PENDING_REVIEW", label: "Pending" },
   { status: "APPROVED", label: "Approved" },
   { status: "REJECTED", label: "Rejected" },
@@ -36,12 +37,12 @@ export default async function DmcaAdminPage({
   searchParams?: { status?: string; updated?: string; error?: string };
 }) {
   const selected = TABS.some((tab) => tab.status === searchParams?.status)
-    ? (searchParams?.status as DmcaStatus)
+    ? (searchParams?.status as ClaimStatus)
     : "PENDING_REVIEW";
   const claims = await listDmcaClaims(selected);
 
   return (
-    <main className="wrap">
+    <main className="compliance wrap">
       <h1>Copyright claims</h1>
       <p className="muted">Age-verified staff only. Contact details are decrypted for review and are not written to the audit log.</p>
       {searchParams?.updated ? <p className="banner">Claim updated.</p> : null}

@@ -20,7 +20,7 @@ export default function DmcaPolicyPage({
   searchParams?: { submitted?: string; counter?: string; error?: string };
 }) {
   return (
-    <main className="wrap">
+    <main className="compliance wrap">
       <h1>DMCA policy</h1>
       <p>
         Designated copyright contact: <a href="mailto:dmca@dickrank.online">dmca@dickrank.online</a>

@@ -43,7 +43,7 @@ export default async function AuditPage({ searchParams }: { searchParams?: Searc
   exportParams.set("format", "csv");
 
   return (
-    <main className="wrap">
+    <main className="compliance wrap">
       <h1>Audit log</h1>
       <p className="muted">
         IP addresses are stored as a one-way hash. The table shows a shortened hash, not the original address.
@@ -112,7 +112,11 @@ export default async function AuditPage({ searchParams }: { searchParams?: Searc
                       <code>{row.userId ?? "—"}</code>
                     </td>
                     <td>
-                      <code title={row.ipAddressHash}>{formatHashedIp(row.ipAddressHash)}</code>
+                      {row.ipAddressHash ? (
+                        <code title={row.ipAddressHash}>{formatHashedIp(row.ipAddressHash)}</code>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td title={row.userAgent ?? ""}>{client.label}</td>
                   </tr>

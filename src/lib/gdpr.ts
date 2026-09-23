@@ -32,7 +32,7 @@ export type ExportedUserData = {
   payments: Array<{ id: string; amountCents: number; currency: string; description: string | null; createdAt: string; retainUntil: string }>;
   dmcaClaimsFiled: Array<{ id: string; contentUrl: string; description: string; contactInfo: string; status: string; createdAt: string }>;
   dmcaClaimsReceived: Array<{ id: string; contentUrl: string; status: string; createdAt: string }>;
-  auditLogs: Array<{ id: string; action: string; resource: string; createdAt: string; ipAddressHash: string; userAgent: string | null }>;
+  auditLogs: Array<{ id: string; action: string; resource: string | null; createdAt: string; ipAddressHash: string | null; userAgent: string | null }>;
 };
 
 export async function exportUserData(userId: string): Promise<ExportedUserData> {
@@ -43,7 +43,7 @@ export async function exportUserData(userId: string): Promise<ExportedUserData> 
 
   const [posts, content, payments, filed, received, auditLogs] = await Promise.all([
     prisma.post.findMany({ where: { authorId: userId }, orderBy: { createdAt: "asc" } }),
-    prisma.content.findMany({ where: { ownerId: userId }, orderBy: { createdAt: "asc" } }),
+    prisma.content.findMany({ where: { creatorId: userId }, orderBy: { createdAt: "asc" } }),
     prisma.paymentRecord.findMany({ where: { OR: [{ userId }, { accountRef: userId }] }, orderBy: { createdAt: "asc" } }),
     prisma.dmcaClaim.findMany({ where: { claimantUserId: userId }, orderBy: { createdAt: "asc" } }),
     prisma.dmcaClaim.findMany({ where: { contentOwnerId: userId }, orderBy: { createdAt: "asc" } }),
@@ -55,7 +55,7 @@ export async function exportUserData(userId: string): Promise<ExportedUserData> 
     retention: retentionPolicyText(),
     profile: {
       id: user.id,
-      email: decryptPii(user.emailEncrypted),
+      email: decryptPii(user.emailEncrypted ?? ""),
       displayName: user.displayName,
       role: user.role,
       ageVerified: user.ageVerified,
@@ -177,7 +177,7 @@ export async function processExportJob(jobId: string): Promise<void> {
       data: { status: "READY", storageKey: key, readyAt: new Date(), error: null },
     });
     const user = await prisma.user.findUnique({ where: { id: job.userId } });
-    if (user && !user.anonymizedAt) {
+    if (user?.emailEncrypted && !user.anonymizedAt) {
       const downloadUrl = await signedDownloadUrl(key);
       await notify({
         userId: user.id,
@@ -265,7 +265,7 @@ export async function deleteUserData(userId: string, meta: { ipAddress: string; 
   if (user.anonymizedAt) return { alreadyDeleted: true as const };
 
   const ipAddressHash = hashIp(meta.ipAddress);
-  const contents = await prisma.content.findMany({ where: { ownerId: userId } });
+  const contents = await prisma.content.findMany({ where: { creatorId: userId } });
   const storageKeys = contents.map((item) => item.storageKey).filter((key): key is string => Boolean(key));
   if (storageKeys.length > 0 && !storageConfigured()) {
     throw new Error("AWS_S3_BUCKET is required to delete stored media");
@@ -299,7 +299,7 @@ export async function deleteUserData(userId: string, meta: { ipAddress: string; 
       await tx.content.update({
         where: { id: item.id },
         data: {
-          title: null,
+          title: "Removed",
           url: `deleted:${item.id}`,
           storageKey: null,
           hidden: true,
@@ -314,6 +314,7 @@ export async function deleteUserData(userId: string, meta: { ipAddress: string; 
     await tx.user.update({
       where: { id: userId },
       data: {
+        username: `deleted${userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 24)}`,
         emailEncrypted: encryptPii(tombstoneEmail),
         emailHash: hashEmail(tombstoneEmail),
         displayName: null,
@@ -326,6 +327,8 @@ export async function deleteUserData(userId: string, meta: { ipAddress: string; 
       data: {
         userId,
         action: "DELETE",
+        entityType: "user",
+        entityId: userId,
         resource: `user:${userId}`,
         details: {
           event: "account_anonymized",

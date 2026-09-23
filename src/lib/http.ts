@@ -1,8 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { ApiError } from "@/lib/errors";
+
+export function json<T>(body: T, status = 200) {
+  return NextResponse.json(body, { status });
+}
+
+export async function handle(fn: () => Promise<Response>) {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof ApiError) return json({ error: error.message }, error.status);
+    if (error instanceof ZodError) {
+      return json({ error: "Invalid request", issues: error.flatten() }, 400);
+    }
+    console.error(error);
+    return json({ error: "Something went wrong" }, 500);
+  }
+}
 
 export function jsonError(status: number, error: string, extra?: Record<string, unknown>) {
   return NextResponse.json({ error, ...extra }, { status });
+}
+
+export class HttpError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 export function assertSameOrigin(req: NextRequest) {
@@ -17,15 +44,6 @@ export function assertSameOrigin(req: NextRequest) {
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   if (!host || originHost !== host) {
     throw new HttpError(403, "Cross-origin request was rejected");
-  }
-}
-
-export class HttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
   }
 }
 

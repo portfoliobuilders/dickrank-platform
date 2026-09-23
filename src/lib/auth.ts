@@ -1,15 +1,15 @@
 import { createClient, type User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptPii, hashEmail } from "@/lib/crypto";
 import { HttpError } from "@/lib/http";
 
 export type AppUser = {
   id: string;
-  role: "USER" | "ADMIN";
+  role: string;
   ageVerified: boolean;
-  emailEncrypted: string;
+  emailEncrypted: string | null;
   displayName: string | null;
   anonymizedAt: Date | null;
   terminatedAt: Date | null;
@@ -47,13 +47,16 @@ async function profileForAuthUser(authUser: SupabaseAuthUser): Promise<AppUser> 
   const existing = await prisma.user.findUnique({ where: { id: authUser.id } });
   if (existing) return existing;
   const email = authUser.email ?? `${authUser.id}@users.dickrank.online`;
+  const username = `u${authUser.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 24)}`;
   return prisma.user.create({
     data: {
       id: authUser.id,
+      username,
       emailEncrypted: encryptPii(email),
       emailHash: hashEmail(email),
       role: "USER",
       ageVerified: false,
+      ageVerification: false,
     },
   });
 }
@@ -95,4 +98,57 @@ export async function requireAdmin(req?: NextRequest): Promise<AppUser> {
     throw new HttpError(403, "Admin access required");
   }
   return user;
+}
+
+export type VerifiedProfile = {
+  id: string;
+  email: string | null;
+  age_verified: boolean;
+  role: string;
+  stripe_customer_id: string | null;
+};
+
+export async function requireVerifiedUser(): Promise<
+  { profile: VerifiedProfile; email: string | null } | { error: NextResponse }
+> {
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const { createSupabaseServer, isAuthConfigured } = await import("@/lib/supabase/server");
+  if (!isAuthConfigured()) {
+    return { error: NextResponse.json({ error: "Sign-in is not configured" }, { status: 503 }) };
+  }
+
+  const supabase = createSupabaseServer();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) {
+    return { error: NextResponse.json({ error: "Sign in required" }, { status: 401 }) };
+  }
+
+  const admin = createAdminClient();
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .select("id, age_verified, role, stripe_customer_id")
+    .eq("id", data.user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error("profile lookup failed", { code: profileError.code });
+    return { error: NextResponse.json({ error: "Could not load your account" }, { status: 500 }) };
+  }
+
+  if (!profile?.age_verified) {
+    return {
+      error: NextResponse.json({ error: "Age verification is required before payments" }, { status: 403 }),
+    };
+  }
+
+  return {
+    email: data.user.email ?? null,
+    profile: {
+      id: profile.id,
+      email: data.user.email ?? null,
+      age_verified: profile.age_verified,
+      role: profile.role,
+      stripe_customer_id: profile.stripe_customer_id,
+    },
+  };
 }

@@ -11,5 +11,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user.ageVerified) {
     redirect("/?notice=age");
   }
-  return children;
+  return (
+    <div className="compliance">
+      <header className="site">
+        <div className="wrap">
+          <strong>DickRank staff</strong>
+          <nav>
+            <a href="/audit">Audit log</a>
+            <a href="/claims">Copyright claims</a>
+            <a href="/">Home</a>
+          </nav>
+        </div>
+      </header>
+      {children}
+    </div>
+  );
 }

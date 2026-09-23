@@ -1,4 +1,4 @@
-import { AuditAction, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashIp, sanitizeDetails } from "@/lib/crypto";
 import { toCsv } from "@/lib/csv";
@@ -6,7 +6,7 @@ import { auditActionSchema } from "@/lib/schemas";
 import { AUDIT_EXPORT_ROW_CAP } from "@/lib/retention";
 import { parseUserAgent } from "@/lib/user-agent";
 
-const ACTION_MAP: Record<string, AuditAction> = {
+const ACTION_MAP: Record<string, string> = {
   login: "LOGIN",
   logout: "LOGOUT",
   upload: "UPLOAD",
@@ -37,7 +37,7 @@ export type AuditFilters = {
 
 export { parseUserAgent };
 
-export function normalizeAuditAction(action: string): AuditAction {
+export function normalizeAuditAction(action: string): string {
   const parsed = auditActionSchema.parse(action.toLowerCase());
   return ACTION_MAP[parsed];
 }
@@ -52,12 +52,17 @@ export async function logAction(input: AuditLogInput) {
     throw new Error("Audit IP address is required");
   }
 
+  const details = sanitizeDetails(input.details ?? undefined) as Prisma.InputJsonValue | undefined;
+  const entityId = resource.includes(":") ? resource.split(":").slice(1).join(":") : null;
   return prisma.auditLog.create({
     data: {
       userId: input.userId,
       action,
+      entityType: resource.split(":")[0] || "event",
+      entityId,
       resource,
-      details: sanitizeDetails(input.details ?? undefined) as Prisma.InputJsonValue | undefined,
+      details,
+      metadata: details,
       ipAddressHash: hashIp(input.ipAddress),
       userAgent: input.userAgent?.slice(0, 512) ?? null,
     },
@@ -116,8 +121,8 @@ export function auditLogsToCsv(
     createdAt: Date;
     userId: string | null;
     action: string;
-    resource: string;
-    ipAddressHash: string;
+    resource: string | null;
+    ipAddressHash: string | null;
     userAgent: string | null;
   }>,
 ): string {
@@ -134,6 +139,48 @@ export function auditLogsToCsv(
       parseUserAgent(row.userAgent).label,
     ]),
   );
+}
+
+type AuditInput = {
+  actorId: string | null;
+  action: string;
+  entity: string;
+  entityId?: string | null;
+  metadata?: Record<string, string | number | boolean | null>;
+};
+
+/** System jobs (backup, cleanup) record an event with no signed-in user. */
+export async function writeAuditEvent(input: {
+  action: string;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  const action = input.action.trim().slice(0, 120);
+  if (!action) throw new Error("Audit action is required");
+  const details = sanitizeDetails(input.metadata) as Prisma.InputJsonValue | undefined;
+  await prisma.auditLog.create({
+    data: {
+      action,
+      entityType: action.split(".")[0] || "system",
+      resource: action,
+      details,
+      metadata: details,
+    },
+  });
+}
+
+export async function writeAuditLog(input: AuditInput): Promise<void> {
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createAdminClient();
+  const { error } = await admin.from("audit_logs").insert({
+    actor_id: input.actorId,
+    action: input.action,
+    entity: input.entity,
+    entity_id: input.entityId ?? null,
+    metadata: input.metadata ?? {},
+  });
+  if (error) {
+    console.error("audit log failed", { action: input.action, entity: input.entity, code: error.code });
+  }
 }
 
 export const AUDIT_ACTION_OPTIONS = [

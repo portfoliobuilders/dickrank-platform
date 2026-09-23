@@ -1,6 +1,4 @@
-import { AccountTools } from "@/app/account-tools";
-
-export const dynamic = "force-dynamic";
+import Link from "next/link";
 
 export default function HomePage({
   searchParams,
@@ -8,22 +6,26 @@ export default function HomePage({
   searchParams?: { notice?: string };
 }) {
   return (
-    <main className="wrap">
-      <h1>18+ only</h1>
-      <p className="muted">
-        DickRank is an adult platform. You must be 18 or older to view or upload content.
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-6 px-6">
+      <p className="text-sm uppercase tracking-wide text-amber-300">Adults 18+ only</p>
+      <h1 className="text-4xl font-semibold">Creator payments</h1>
+      <p className="text-zinc-400">
+        Subscriptions and tips are processed by Stripe. Age verification is required before anyone can pay or get paid.
       </p>
       {searchParams?.notice === "age" ? (
-        <p className="banner error">Staff tools that show content require a verified 18+ admin account.</p>
+        <p className="text-red-300">Staff tools that show content require a verified 18+ admin account.</p>
       ) : null}
-      <div className="card">
-        <h2>Copyright</h2>
-        <p>
-          To report copyrighted material, use the <a href="/dmca">DMCA policy page</a>. The designated
-          address is dmca@dickrank.online.
-        </p>
+      <div className="flex flex-col gap-2">
+        <Link className="text-amber-300 underline" href="/creator/dashboard">
+          Creator dashboard
+        </Link>
+        <Link className="text-amber-300 underline" href="/dmca">
+          DMCA / copyright policy
+        </Link>
+        <Link className="text-amber-300 underline" href="/account">
+          Download or delete your data
+        </Link>
       </div>
-      <AccountTools />
     </main>
   );
 }

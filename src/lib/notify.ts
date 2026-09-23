@@ -7,7 +7,7 @@ export async function notify(input: {
   subject: string;
   body: string;
 }): Promise<void> {
-  const record = await prisma.notification.create({
+  const record = await prisma.emailOutbox.create({
     data: {
       userId: input.userId ?? null,
       recipientEncrypted: encryptPii(input.email),
@@ -34,7 +34,7 @@ export async function notify(input: {
     }),
   });
 
-  await prisma.notification.update({
+  await prisma.emailOutbox.update({
     where: { id: record.id },
     data: response.ok ? { status: "SENT", sentAt: new Date() } : { status: "FAILED" },
   });
