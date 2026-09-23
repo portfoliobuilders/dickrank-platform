@@ -1,0 +1,9 @@
+node_modules
+.next
+tsconfig.tsbuildinfo
+.env
+.env.local
+.env*.local
+*.log
+dist
+.prisma
