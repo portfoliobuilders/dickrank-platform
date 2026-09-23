@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { formatCount } from '@/lib/format';
 import type { PublicProfile } from '@/lib/types';
 import { SubscribeButton } from '@/components/profile/SubscribeButton';
 
@@ -35,11 +34,11 @@ export function ProfileHeader({ profile }: { profile: PublicProfile }) {
         {profile.bio ? <p className="max-w-2xl text-zinc-200">{profile.bio}</p> : null}
         <div className="flex gap-8 text-sm">
           <div>
-            <div className="text-lg font-semibold">{formatCount(profile.contentCount)}</div>
+            <div className="text-lg font-semibold">{profile.contentCount.toLocaleString()}</div>
             <div className="text-zinc-400">Posts</div>
           </div>
           <div>
-            <div className="text-lg font-semibold">{formatCount(followers)}</div>
+            <div className="text-lg font-semibold">{followers.toLocaleString()}</div>
             <div className="text-zinc-400">Followers</div>
           </div>
         </div>
