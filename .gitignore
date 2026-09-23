@@ -1,0 +1,11 @@
+node_modules
+.next
+tsconfig.tsbuildinfo
+.env
+.env.local
+*.db
+*.db-journal
+storage
+dist
+coverage
+.DS_Store

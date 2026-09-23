@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       String    @id @default(cuid())
+  emailHash                String    @unique
+  emailEncrypted           String
+  username                 String    @unique
+  passwordHash             String
+  verificationStatus       String    @default("PENDING")
+  ageVerified              Boolean   @default(false)
+  emailVerified            DateTime?
+  emailVerificationHash    String?
+  emailVerificationExpires DateTime?
+  documentSubmittedAt      DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  verificationDocuments VerificationDocument[]
+  reviewQueueItems      ReviewQueueItem[]
+  auditLogs             AuditLog[]
+
+  @@index([verificationStatus])
+  @@index([ageVerified])
+  @@map("users")
+}
+
+model VerificationDocument {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  encryptedFrontUrl  String
+  encryptedBackUrl   String
+  encryptedSelfieUrl String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([userId])
+  @@map("verification_documents")
+}
+
+model ReviewQueueItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("review_queue_items")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  metadata  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
