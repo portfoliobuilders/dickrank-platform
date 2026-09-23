@@ -1,25 +1,25 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
-export type AuditAction = 'create' | 'update' | 'delete' | 'upload';
+type AuditClient = Prisma.TransactionClient | typeof prisma;
 
-type AuditInput = {
-  actorId?: string | null;
-  action: AuditAction;
-  entityType: string;
-  entityId?: string | null;
-  metadata?: Record<string, string | number | boolean | null>;
-  ipHash?: string | null;
-};
-
-export async function writeAudit(tx: Prisma.TransactionClient, entry: AuditInput) {
-  await tx.auditLog.create({
+export async function writeAuditLog(
+  db: AuditClient,
+  entry: {
+    userId?: string | null;
+    action: string;
+    resource: string;
+    resourceId?: string | null;
+    metadata?: Prisma.InputJsonValue;
+  },
+): Promise<void> {
+  await db.auditLog.create({
     data: {
-      actorId: entry.actorId ?? null,
+      userId: entry.userId ?? null,
       action: entry.action,
-      entityType: entry.entityType,
-      entityId: entry.entityId ?? null,
-      metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
-      ipHash: entry.ipHash ?? null,
+      resource: entry.resource,
+      resourceId: entry.resourceId ?? null,
+      metadata: entry.metadata,
     },
   });
 }
