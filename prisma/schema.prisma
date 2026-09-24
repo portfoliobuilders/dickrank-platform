@@ -124,3 +124,20 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
 }
+
+/// Outbound email jobs. Recipient address is encrypted at rest (PII).
+model EmailQueue {
+  id          String    @id @default(cuid())
+  toEncrypted String
+  subject     String
+  html        String
+  status      String    @default("pending")
+  sentAt      DateTime?
+  error       String?
+  retryCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@map("email_queue")
+}

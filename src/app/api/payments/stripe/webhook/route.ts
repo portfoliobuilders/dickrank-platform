@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { writeAuditLog } from '@/lib/audit';
-import { sendEmail } from '@/lib/email';
+import { enqueueEmail } from '@/lib/email';
 import { creditEarnings, completeWithdrawal, markWithdrawalProcessing } from '@/lib/payments/ledger';
 import { splitAmount, formatUsd } from '@/lib/payments/money';
 import { syncConnectedAccount } from '@/lib/payments/connect';
@@ -150,11 +150,11 @@ async function onCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const email = await emailFor(subscriberId);
   if (email) {
-    await sendEmail({
-      to: email,
-      subject: 'Your subscription is active',
-      html: '<p>Your subscription is active. You can manage it from your account. This confirmation was sent because checkout completed.</p>',
-    });
+await enqueueEmail({
+            to: email,
+            subject: 'Your subscription is active',
+            html: '<p>Your subscription is active. You can manage it from your account. This confirmation was sent because checkout completed.</p>',
+          });
   }
 }
 
@@ -205,7 +205,7 @@ async function onInvoicePaid(invoice: Stripe.Invoice) {
 
   const email = await emailFor(subscriberId);
   if (email) {
-    await sendEmail({
+    await enqueueEmail({
       to: email,
       subject: 'Payment received',
       html: `<p>We received your subscription payment of ${formatUsd(invoice.amount_paid)}.</p>`,
@@ -232,7 +232,7 @@ async function onSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   const email = await emailFor(subscriberId);
   if (email) {
-    await sendEmail({
+    await enqueueEmail({
       to: email,
       subject: 'Your subscription has ended',
       html: '<p>Your subscription has been canceled and will not renew.</p>',
@@ -268,7 +268,7 @@ async function onTipSucceeded(intent: Stripe.PaymentIntent) {
 
   const email = await emailFor(tipperId);
   if (email) {
-    await sendEmail({
+    await enqueueEmail({
       to: email,
       subject: 'Tip sent',
       html: `<p>Your tip of ${formatUsd(intent.amount)} was received.</p>`,

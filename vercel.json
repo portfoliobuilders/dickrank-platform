@@ -56,5 +56,11 @@
       "source": "/health",
       "destination": "/api/health"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/webhooks/email-processor",
+      "schedule": "*/5 * * * *"
+    }
   ]
 }
