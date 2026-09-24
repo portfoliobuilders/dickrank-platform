@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { writeAudit } from '@/lib/audit';
 import { hashLookup } from '@/lib/encryption';
+import { emailTemplates, sendResendEmail } from '@/lib/email';
 import { clientIpHash, withApi } from '@/lib/http';
 import { getPrisma } from '@/lib/prisma';
 import { rateLimit } from '@/lib/rate-limit';
@@ -50,6 +51,18 @@ export const POST = withApi(async (request) => {
         ipHash,
       });
     });
+
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://dickrank.online').replace(/\/$/, '');
+    const template = emailTemplates.passwordReset(`${appUrl}/reset-password?token=${token}`);
+    try {
+      await sendResendEmail({
+        to: parsed.data.email.toLowerCase(),
+        subject: template.subject,
+        html: template.html,
+      });
+    } catch (error) {
+      console.error('password reset email failed', error);
+    }
   }
 
   return NextResponse.json({
