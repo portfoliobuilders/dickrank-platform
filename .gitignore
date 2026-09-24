@@ -7,3 +7,6 @@ node_modules
 omni-ledger.db
 dist
 coverage
+test-results
+playwright-report
+blob-report

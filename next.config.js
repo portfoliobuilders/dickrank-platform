@@ -40,4 +40,10 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+const { withSentryConfig } = require("@sentry/nextjs/config");
+
+module.exports = withSentryConfig(nextConfig, {
+  silent: true,
+  sourcemaps: { disable: true },
+  webpack: { automaticVercelMonitors: false },
+});
