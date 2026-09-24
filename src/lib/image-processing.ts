@@ -68,13 +68,16 @@ async function buildBlurhash(buffer: Buffer): Promise<string> {
 
 function watermarkSvg(width: number, height: number, userId: string): Buffer {
   const label = escapeXml(`DickRank.online | @${userId}`);
+  // Wide tile so the full brand + handle fit when rotated.
+  const tileW = 320;
+  const tileH = 160;
   return Buffer.from(`
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <pattern id="watermark" x="0" y="0" width="200" height="100" patternUnits="userSpaceOnUse">
-          <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="14"
-            fill="rgba(255,255,255,0.15)" text-anchor="middle"
-            transform="rotate(-45, 100, 50)">${label}</text>
+        <pattern id="watermark" x="0" y="0" width="${tileW}" height="${tileH}" patternUnits="userSpaceOnUse">
+          <text x="${tileW / 2}" y="${tileH / 2}" font-family="Arial, sans-serif" font-size="13"
+            fill="rgba(255,255,255,0.18)" text-anchor="middle" dominant-baseline="middle"
+            transform="rotate(-45, ${tileW / 2}, ${tileH / 2})">${label}</text>
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#watermark)"/>
