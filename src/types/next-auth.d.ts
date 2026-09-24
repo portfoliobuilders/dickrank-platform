@@ -8,6 +8,7 @@ declare module 'next-auth' {
       ageVerified: boolean;
       ageVerification: boolean;
       verificationStatus: string;
+      role?: string;
     };
   }
 
@@ -16,6 +17,7 @@ declare module 'next-auth' {
     ageVerified?: boolean;
     ageVerification?: boolean;
     verificationStatus?: string;
+    role?: string;
   }
 }
 

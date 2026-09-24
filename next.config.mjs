@@ -3,6 +3,13 @@ const isDev = process.env.NODE_ENV !== 'production';
 
 const nextConfig = {
   reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.amazonaws.com' },
+      { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'http', hostname: 'localhost' },
+    ],
+  },
   async headers() {
     const csp = [
       "default-src 'self'",
