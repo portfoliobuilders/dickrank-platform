@@ -1,0 +1,14 @@
+FROM node:20-alpine
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+# prisma generate runs from postinstall and only checks that these exist.
+ENV DATABASE_URL=postgresql://postgres:postgres@db:5432/dickrank
+ENV DIRECT_URL=postgresql://postgres:postgres@db:5432/dickrank
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+EXPOSE 3000
+CMD ["npm", "run", "dev"]

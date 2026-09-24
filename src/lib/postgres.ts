@@ -7,13 +7,14 @@ export function isLocalDatabaseHost(connectionString: string): boolean {
 
 export function createPgPool(connectionString: string): Pool {
   const local = isLocalDatabaseHost(connectionString);
+  const sslmode = new URL(connectionString).searchParams.get("sslmode");
   const rejectUnauthorized = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false";
   const config: PoolConfig = {
     connectionString,
     max: 2,
     connectionTimeoutMillis: 5000,
     statement_timeout: 5000,
-    ssl: local ? undefined : { rejectUnauthorized },
+    ssl: local || sslmode === "disable" ? undefined : { rejectUnauthorized },
   };
   return new Pool(config);
 }
