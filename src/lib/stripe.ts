@@ -25,6 +25,39 @@ export async function createCustomer(input: { email: string; userId: string }): 
   });
 }
 
+export function clientSecretFromSubscription(subscription: Stripe.Subscription): string | null {
+  const invoice = subscription.latest_invoice;
+  if (!invoice || typeof invoice === 'string') return null;
+  return invoice.confirmation_secret?.client_secret ?? null;
+}
+
+export async function createIncompleteSubscription(input: {
+  customerId: string;
+  priceId: string;
+  subscriberId: string;
+  creatorId: string;
+  tierId: string;
+  idempotencyKey: string;
+}): Promise<Stripe.Subscription> {
+  const metadata = {
+    subscriberId: input.subscriberId,
+    creatorId: input.creatorId,
+    tierId: input.tierId,
+  };
+
+  return getStripe().subscriptions.create(
+    {
+      customer: input.customerId,
+      items: [{ price: input.priceId }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: { save_default_payment_method: 'on_subscription' },
+      expand: ['latest_invoice.confirmation_secret'],
+      metadata,
+    },
+    { idempotencyKey: input.idempotencyKey },
+  );
+}
+
 export async function createSubscriptionCheckout(input: {
   customerId: string;
   priceId: string;

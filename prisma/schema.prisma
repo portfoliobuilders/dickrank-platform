@@ -12,7 +12,10 @@ datasource db {
 model User {
   id                    String   @id
   username              String   @unique
+  /// Encrypted at rest. Admins may decrypt for moderation contact only.
+  emailEncrypted        String?
   avatarUrl             String?
+  role                  String   @default("USER")
   ageVerification       Boolean  @default(false)
   verified              Boolean  @default(false)
   healthVerified        Boolean  @default(false)
@@ -29,27 +32,57 @@ model User {
   auditLogs          AuditLog[]
 
   @@index([verified, ageVerification])
+  @@index([role])
 }
 
 model Content {
-  id            String   @id @default(cuid())
-  creatorId     String
-  creator       User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  title         String
-  type          String
-  category      String
-  qualityScore  Float    @default(0)
-  ratingAverage Float    @default(0)
-  ratingCount   Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String           @id @default(cuid())
+  creatorId        String
+  creator          User             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  title            String
+  type             String
+  category         String
+  thumbnailUrl     String?
+  mediaUrl         String?
+  mediaKey         String?          @unique
+  moderationStatus ModerationStatus @default(PENDING)
+  moderationScores Json?
+  rejectionReason  String?
+  qualityScore     Float            @default(0)
+  ratingAverage    Float            @default(0)
+  ratingCount      Int              @default(0)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   ratings Rating[]
+  reviews ManualReview[]
 
   @@index([creatorId])
   @@index([type])
   @@index([category])
   @@index([ratingAverage])
+  @@index([moderationStatus])
+}
+
+model ManualReview {
+  id        String   @id @default(cuid())
+  contentId String
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  reason    String
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([contentId])
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+  MANUAL_REVIEW
 }
 
 model Rating {

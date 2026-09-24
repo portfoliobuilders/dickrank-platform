@@ -6,6 +6,11 @@ export const subscribeSchema = z.object({
   tierId: z.string().uuid(),
 });
 
+export const createSubscriptionSchema = z.object({
+  creatorId: z.string().uuid(),
+  priceId: z.string().regex(/^price_[A-Za-z0-9]+$/),
+});
+
 export const tipSchema = z.object({
   creatorId: z.string().uuid(),
   amountCents: z.number().int().min(MIN_TIP_CENTS).max(MAX_TIP_CENTS),
