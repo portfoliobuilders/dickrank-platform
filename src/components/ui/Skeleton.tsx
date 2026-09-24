@@ -26,14 +26,17 @@ export function ContentGridSkeleton({ count = 8 }: { count?: number }) {
 
 export function ProfileHeaderSkeleton() {
   return (
-    <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-      <Skeleton className="h-28 w-28 rounded-full" />
-      <div className="flex-1 space-y-3">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-full max-w-lg" />
-        <div className="flex gap-6">
-          <Skeleton className="h-10 w-20" />
-          <Skeleton className="h-10 w-20" />
+    <div className="-mx-6 -mt-8">
+      <Skeleton className="h-48 rounded-none md:h-64" />
+      <div className="-mt-16 flex gap-6 px-6">
+        <Skeleton className="h-32 w-32 rounded-2xl md:h-40 md:w-40" />
+        <div className="flex-1 space-y-3 pt-16">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-full max-w-lg" />
+          <div className="flex gap-6">
+            <Skeleton className="h-10 w-20" />
+            <Skeleton className="h-10 w-20" />
+          </div>
         </div>
       </div>
     </div>
