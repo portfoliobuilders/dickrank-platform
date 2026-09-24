@@ -1,58 +1,67 @@
-import { getToken } from 'next-auth/jwt';
-import { NextResponse, type NextRequest } from 'next/server';
+import { withAuth } from 'next-auth/middleware';
+import { NextResponse } from 'next/server';
 
-function isProtected(pathname: string): boolean {
-  return (
-    pathname === '/dashboard' ||
-    pathname.startsWith('/dashboard/') ||
-    pathname === '/upload' ||
-    pathname.startsWith('/upload/') ||
-    pathname === '/creator' ||
-    pathname.startsWith('/creator/') ||
-    pathname === '/discovery' ||
-    pathname.startsWith('/discovery/')
-  );
+const publicRoutes = ['/', '/login', '/register', '/explore'];
+const adultRoutes = ['/dashboard', '/upload', '/profile', '/messages', '/creator', '/discovery', '/feed', '/content'];
+
+function matchesRoute(pathname: string, route: string): boolean {
+  if (route === '/') return pathname === '/';
+  return pathname === route || pathname.startsWith(`${route}/`);
 }
 
-function redirectTo(request: NextRequest, pathname: string) {
-  const url = request.nextUrl.clone();
-  url.pathname = pathname;
-  url.search = '';
-  if (pathname === '/login') {
-    url.searchParams.set('next', request.nextUrl.pathname);
-  }
-  return NextResponse.redirect(url);
-}
+export default withAuth(
+  function middleware(req) {
+    const { pathname } = req.nextUrl;
+    const { token } = req.nextauth;
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  if (
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/webhooks') ||
-    pathname.startsWith('/_next')
-  ) {
+    if (publicRoutes.some((route) => matchesRoute(pathname, route))) {
+      return NextResponse.next();
+    }
+
+    const ageVerified = token?.ageVerified === true || token?.ageVerification === true;
+    if (adultRoutes.some((route) => matchesRoute(pathname, route)) && !ageVerified) {
+      return NextResponse.redirect(new URL('/verify-age', req.url));
+    }
+
+    if (matchesRoute(pathname, '/admin') && token?.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+
     return NextResponse.next();
-  }
-
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-  const ageVerified = token?.ageVerification === true;
-  const verifyingAge = pathname === '/verify-age' || pathname.startsWith('/verify-age/');
-
-  if (verifyingAge && !token) {
-    return redirectTo(request, '/login');
-  }
-
-  if (isProtected(pathname) && !token) {
-    return redirectTo(request, '/login');
-  }
-
-  if (isProtected(pathname) && token && !ageVerified) {
-    return redirectTo(request, '/verify-age');
-  }
-
-  return NextResponse.next();
-}
+  },
+  {
+    callbacks: {
+      authorized({ req, token }) {
+        const { pathname } = req.nextUrl;
+        if (publicRoutes.some((route) => matchesRoute(pathname, route))) return true;
+        if (!token) return false;
+        return true;
+      },
+    },
+  },
+);
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: [
+    '/dashboard',
+    '/dashboard/:path*',
+    '/upload',
+    '/upload/:path*',
+    '/profile',
+    '/profile/:path*',
+    '/messages',
+    '/messages/:path*',
+    '/admin',
+    '/admin/:path*',
+    '/api/protected/:path*',
+    '/creator',
+    '/creator/:path*',
+    '/discovery',
+    '/discovery/:path*',
+    '/feed',
+    '/feed/:path*',
+    '/content/:path*',
+    '/verify-age',
+    '/verify-age/:path*',
+  ],
 };
