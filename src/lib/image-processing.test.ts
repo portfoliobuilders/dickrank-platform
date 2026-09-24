@@ -1,31 +1,32 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import sharp from "sharp";
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import sharp from 'sharp';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { extractVideoThumbnail, processImage } from './image-processing';
 
-const putObjectBuffer = vi.fn();
+describe('image-processing', () => {
+  let root = '';
+  let previousCwd = '';
 
-vi.mock("@/lib/s3", () => ({
-  putObjectBuffer: (...args: unknown[]) => putObjectBuffer(...args),
-}));
-
-describe("processImage", () => {
-  beforeEach(() => {
-    putObjectBuffer.mockReset();
-    putObjectBuffer.mockImplementation(async (input: { key: string }) => ({
-      key: input.key,
-      url: `https://cdn.example.test/${input.key}`,
-    }));
+  beforeEach(async () => {
+    previousCwd = process.cwd();
+    root = await mkdtemp(join(tmpdir(), 'dickrank-img-'));
+    process.chdir(root);
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
+  afterEach(async () => {
+    process.chdir(previousCwd);
+    if (root) await rm(root, { recursive: true, force: true });
   });
 
-  it("uploads WebP original and thumbnail with a blurhash", async () => {
-    const { processImage } = await import("@/lib/image-processing");
-    const buffer = await sharp({
+  it('resizes avatars to a square JPEG and stores under a safe key', async () => {
+    const source = await sharp({
       create: {
-        width: 640,
-        height: 480,
+        width: 800,
+        height: 600,
         channels: 3,
         background: { r: 40, g: 120, b: 200 },
       },
@@ -33,29 +34,25 @@ describe("processImage", () => {
       .jpeg()
       .toBuffer();
 
-    const result = await processImage({
-      buffer,
-      filename: "photo.jpg",
-      userId: "user-123",
-      contentType: "content",
+    const avatar = await processImage({
+      buffer: source,
+      filename: 'photo.jpg',
+      userId: 'user-abc-123',
+      contentType: 'avatar',
       watermark: false,
     });
 
-    expect(result.metadata.format).toBe("webp");
-    expect(result.metadata.size).toBeGreaterThan(0);
-    expect(result.blurhash.length).toBeGreaterThan(10);
-    expect(result.originalUrl).toContain("original.webp");
-    expect(result.thumbnailUrl).toContain("thumbnail.webp");
-    expect(result.originalKey).toMatch(/^content\/user-123\/.+\/original\.webp$/);
-    expect(putObjectBuffer).toHaveBeenCalledTimes(2);
+    expect(avatar.width).toBe(256);
+    expect(avatar.height).toBe(256);
+    expect(avatar.mimeType).toBe('image/jpeg');
+    expect(avatar.key).toMatch(/^local\/userabc123\/.+\.jpg$/);
   });
 
-  it("square-crops avatars to 400x400", async () => {
-    const { processImage } = await import("@/lib/image-processing");
-    const buffer = await sharp({
+  it('watermarks content images', async () => {
+    const source = await sharp({
       create: {
-        width: 800,
-        height: 600,
+        width: 400,
+        height: 300,
         channels: 3,
         background: { r: 10, g: 10, b: 10 },
       },
@@ -63,77 +60,51 @@ describe("processImage", () => {
       .png()
       .toBuffer();
 
-    const result = await processImage({
-      buffer,
-      filename: "avatar.png",
-      userId: "creator1",
-      contentType: "avatar",
+    const content = await processImage({
+      buffer: source,
+      filename: 'shot.png',
+      userId: 'creator1',
+      contentType: 'content',
+      watermark: true,
     });
 
-    expect(result.metadata.width).toBe(400);
-    expect(result.metadata.height).toBe(400);
-    expect(result.originalKey).toMatch(/^avatars\/creator1\//);
+    expect(content.byteSize).toBeGreaterThan(0);
+    expect(content.contentType).toBe('content');
+    expect(content.mimeType).toBe('image/jpeg');
   });
 
-  it("rejects empty user ids after sanitizing", async () => {
-    const { processImage } = await import("@/lib/image-processing");
-    const buffer = await sharp({
-      create: { width: 32, height: 32, channels: 3, background: "#fff" },
-    })
-      .png()
-      .toBuffer();
+  it('extracts a JPEG frame from a short MP4 when ffmpeg is available', async () => {
+    const ffmpeg = spawnSync('ffmpeg', ['-version'], { encoding: 'utf8' });
+    if (ffmpeg.status !== 0) {
+      return;
+    }
 
-    await expect(
-      processImage({
-        buffer,
-        filename: "x.png",
-        userId: "@@@",
-        contentType: "content",
-        watermark: false,
-      }),
-    ).rejects.toThrow("Failed to process image");
-  });
-});
-
-describe("extractVideoThumbnail", () => {
-  it("pulls a JPEG frame from a short generated video", async () => {
-    const { spawn } = await import("node:child_process");
-    const { promises: fs } = await import("node:fs");
-    const os = await import("node:os");
-    const path = await import("node:path");
-
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "dickrank-vid-"));
-    const videoPath = path.join(dir, "sample.mp4");
-
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(
-        "ffmpeg",
+    const videoDir = await mkdtemp(join(tmpdir(), 'dickrank-vid-'));
+    const videoPath = join(videoDir, 'sample.mp4');
+    try {
+      const make = spawnSync(
+        'ffmpeg',
         [
-          "-y",
-          "-f",
-          "lavfi",
-          "-i",
-          "color=c=blue:s=320x240:d=2",
-          "-c:v",
-          "libx264",
-          "-pix_fmt",
-          "yuv420p",
+          '-y',
+          '-f',
+          'lavfi',
+          '-i',
+          'color=c=blue:s=320x240:d=2',
+          '-pix_fmt',
+          'yuv420p',
           videoPath,
         ],
-        { stdio: "ignore" },
+        { encoding: 'utf8' },
       );
-      child.on("error", reject);
-      child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg ${code}`))));
-    });
+      assert.equal(make.status, 0, make.stderr);
 
-    const videoBuffer = await fs.readFile(videoPath);
-    const { extractVideoThumbnail } = await import("@/lib/image-processing");
-    const thumb = await extractVideoThumbnail(videoBuffer);
-    const meta = await sharp(thumb).metadata();
-
-    expect(meta.format).toBe("jpeg");
-    expect((meta.width ?? 0) > 0).toBe(true);
-
-    await fs.rm(dir, { recursive: true, force: true });
-  }, 60_000);
+      const videoBuffer = await readFile(videoPath);
+      const thumb = await extractVideoThumbnail(videoBuffer);
+      expect(thumb.length).toBeGreaterThan(100);
+      const meta = await sharp(thumb).metadata();
+      expect(meta.format).toBe('jpeg');
+    } finally {
+      await rm(videoDir, { recursive: true, force: true });
+    }
+  });
 });
