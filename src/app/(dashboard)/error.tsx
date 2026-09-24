@@ -1,6 +1,15 @@
 'use client';
 
-export default function DashboardError({ reset }: { error: Error; reset: () => void }) {
+import { useEffect } from 'react';
+import { analytics } from '@/lib/analytics';
+import { captureError } from '@/lib/error-tracking';
+
+export default function DashboardError({ error, reset }: { error: Error; reset: () => void }) {
+  useEffect(() => {
+    analytics.trackError(error, 'dashboard');
+    void captureError(error, 'dashboard');
+  }, [error]);
+
   return (
     <div className="rounded-2xl border border-zinc-800 p-6">
       <h1 className="text-xl font-semibold">Something went wrong</h1>

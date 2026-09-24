@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { useState } from "react";
 
+import { analytics } from "@/lib/analytics";
 import { createRatingSchema } from "@/lib/validation";
 
 type ScoreField = "overall" | "feel" | "performance" | "experience" | "userExperience";
@@ -194,6 +195,7 @@ export function RatingComponent({ contentId, accessToken, onSubmitted }: RatingC
         return;
       }
       setDone({ weightedScore: payload.rating.weightedScore });
+      analytics.trackRating(contentId, payload.rating.weightedScore, review.trim().length > 0);
       onSubmitted?.({ id: payload.rating.id, weightedScore: payload.rating.weightedScore });
     } catch {
       setFormError("The review could not be saved. Check your connection and try again.");

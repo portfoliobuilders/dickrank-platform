@@ -1,8 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { rememberPendingSubscription } from '@/components/analytics/SubscriptionSuccessTracker';
 
-export function SubscribeButton({ creatorId, tierId }: { creatorId: string; tierId: string }) {
+export function SubscribeButton({
+  creatorId,
+  tierId,
+  tierName,
+  price,
+}: {
+  creatorId: string;
+  tierId: string;
+  tierName: string;
+  price: number;
+}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,6 +32,7 @@ export function SubscribeButton({ creatorId, tierId }: { creatorId: string; tier
         setLoading(false);
         return;
       }
+      rememberPendingSubscription(creatorId, tierName, price);
       window.location.href = data.url;
     } catch {
       setError('Checkout could not be started');

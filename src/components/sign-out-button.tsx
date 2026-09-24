@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
+import { analytics } from '@/lib/analytics';
 
 export function SignOutButton() {
   const [pending, setPending] = useState(false);
@@ -16,6 +17,7 @@ export function SignOutButton() {
       aria-busy={pending}
       onClick={() => {
         setPending(true);
+        analytics.reset();
         void signOut({ callbackUrl: '/' });
       }}
     >
