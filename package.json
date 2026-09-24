@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "lint": "next lint",
     "test": "tsx --test src/lib/admin-moderation.test.ts src/lib/moderation.test.ts src/lib/categories.test.ts",
+    "test:coverage": "mkdir -p coverage && tsx --test --experimental-test-coverage --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info src/lib/admin-moderation.test.ts src/lib/moderation.test.ts src/lib/categories.test.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -38,6 +41,8 @@
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.6",
     "autoprefixer": "^10.4.21",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.28",
     "postcss": "^8.5.3",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.17",
