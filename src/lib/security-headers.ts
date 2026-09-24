@@ -32,7 +32,8 @@ export function getContentSecurityPolicy(mode: "production" | "development" = "p
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${S3_AND_CDN_ORIGINS}`,
     "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co https://api.stripe.com wss://*.supabase.co",
+    "connect-src 'self' https://*.supabase.co https://api.stripe.com wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io",
+    "worker-src 'self' blob:",
     "frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
     "upgrade-insecure-requests",
   ].join("; ");
