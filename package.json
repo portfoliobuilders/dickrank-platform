@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/lib/admin-moderation.test.ts src/lib/moderation.test.ts src/lib/categories.test.ts",
-    "postinstall": "prisma generate"
+    "test": "vitest run",
+    "test:jev": "vitest run src/lib/jev.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
