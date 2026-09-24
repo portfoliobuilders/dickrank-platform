@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { analytics } from '@/lib/analytics';
 import { safeNextPath } from '@/lib/safe-path';
 import { credentialsSchema } from '@/lib/validations';
 
@@ -47,6 +48,13 @@ export default function LoginPage() {
         return;
       }
       const session = await getSession();
+      if (session?.user?.id) {
+        analytics.identify(session.user.id, {
+          username: session.user.username,
+          age_verified: session.user.ageVerification === true,
+          role: session.user.role,
+        });
+      }
       router.push(session?.user?.ageVerified === true ? nextPath : '/verify-age');
       router.refresh();
     } catch {

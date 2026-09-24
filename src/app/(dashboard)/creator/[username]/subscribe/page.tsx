@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { SubscriptionSuccessTracker } from '@/components/analytics/SubscriptionSuccessTracker';
 import { SubscribeButton } from '@/components/payments/SubscribeButton';
 import { TipButton } from '@/components/payments/TipButton';
 import { getPublicCreator, isPreviewCreator } from '@/lib/payments/catalog';
@@ -28,6 +29,7 @@ export default async function SubscribePage({
 
   return (
     <main className="space-y-8">
+      <SubscriptionSuccessTracker active={searchParams.status === 'success'} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-wide text-amber-300">18+ subscribers</p>
@@ -61,7 +63,12 @@ export default async function SubscribePage({
               ))}
             </ul>
             <div className="mt-6">
-              <SubscribeButton creatorId={creator.id} tierId={tier.id} />
+              <SubscribeButton
+                creatorId={creator.id}
+                tierId={tier.id}
+                tierName={tier.name}
+                price={tier.priceCents / 100}
+              />
             </div>
           </article>
         ))}

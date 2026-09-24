@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ContentViewTracker } from '@/components/analytics/ContentViewTracker';
 import { ContentGrid } from '@/components/content/ContentCard';
 import { LikeButton } from '@/components/content/LikeButton';
 import { MediaStage } from '@/components/content/MediaStage';
@@ -33,6 +34,7 @@ export default async function ContentPage({ params }: { params: { id: string } }
 
   return (
     <main className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+      <ContentViewTracker contentId={content.id} contentType={content.mediaType} creatorId={content.creator.id} />
       <article className="space-y-5">
         <MediaStage content={content} userId={user.id} />
         <div className="flex flex-wrap items-start justify-between gap-4">
