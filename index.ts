@@ -2,7 +2,7 @@ import { generateText } from "ai";
 
 async function main() {
   const { text } = await generateText({
-    model: "openai/gpt-5.5",
+    model: "openai/gpt-5",
     prompt:
       "Invent a new holiday and describe its traditions. Keep it to a few short paragraphs.",
   });
