@@ -1,7 +1,7 @@
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { HttpError } from '@/lib/errors';
-import { createAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
+import { createAdminClient, isSupabaseConfigured } from '@/lib/supabase/admin';
 
 const LOCAL_ROOT = path.resolve(process.cwd(), 'storage', 'uploads');
 
@@ -34,7 +34,7 @@ function localFilePath(ownerId: string, fileName: string): string {
 export async function storeUpload(key: string, buffer: Buffer, mimeType: string): Promise<void> {
   const [backend, ownerId, fileName] = assertSafeKey(key);
   if (backend === 'supabase') {
-    if (!isSupabaseAdminConfigured()) {
+    if (!isSupabaseConfigured()) {
       throw new HttpError('File storage is not configured', 500);
     }
     const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'content';
@@ -59,7 +59,7 @@ export async function storeUpload(key: string, buffer: Buffer, mimeType: string)
 export async function readUpload(key: string): Promise<Buffer> {
   const [backend, ownerId, fileName] = assertSafeKey(key);
   if (backend === 'supabase') {
-    if (!isSupabaseAdminConfigured()) throw new HttpError('File storage is not configured', 500);
+    if (!isSupabaseConfigured()) throw new HttpError('File storage is not configured', 500);
     const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'content';
     const admin = createAdminClient();
     const { data, error } = await admin.storage.from(bucket).download(`${ownerId}/${fileName}`);
@@ -77,7 +77,7 @@ export async function deleteUpload(key: string): Promise<void> {
   try {
     const [backend, ownerId, fileName] = assertSafeKey(key);
     if (backend === 'supabase') {
-      if (!isSupabaseAdminConfigured()) return;
+      if (!isSupabaseConfigured()) return;
       const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'content';
       const admin = createAdminClient();
       await admin.storage.from(bucket).remove([`${ownerId}/${fileName}`]);
@@ -90,7 +90,7 @@ export async function deleteUpload(key: string): Promise<void> {
 }
 
 export function mediaKeyFor(ownerId: string, fileName: string): string {
-  const backend = isSupabaseAdminConfigured() ? 'supabase' : 'local';
+  const backend = isSupabaseConfigured() ? 'supabase' : 'local';
   const key = `${backend}/${ownerId}/${fileName}`;
   assertSafeKey(key);
   return key;
