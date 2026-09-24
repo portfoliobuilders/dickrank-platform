@@ -10,8 +10,14 @@ function isProtected(pathname: string): boolean {
     pathname === '/creator' ||
     pathname.startsWith('/creator/') ||
     pathname === '/discovery' ||
-    pathname.startsWith('/discovery/')
+    pathname.startsWith('/discovery/') ||
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/')
   );
+}
+
+function isAdminRoute(pathname: string): boolean {
+  return pathname === '/admin' || pathname.startsWith('/admin/');
 }
 
 function redirectTo(request: NextRequest, pathname: string) {
@@ -35,7 +41,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-  const ageVerified = token?.ageVerification === true;
+  const ageVerified = token?.ageVerification === true || token?.ageVerified === true;
   const verifyingAge = pathname === '/verify-age' || pathname.startsWith('/verify-age/');
 
   if (verifyingAge && !token) {
@@ -48,6 +54,13 @@ export async function middleware(request: NextRequest) {
 
   if (isProtected(pathname) && token && !ageVerified) {
     return redirectTo(request, '/verify-age');
+  }
+
+  if (isAdminRoute(pathname) && token) {
+    const role = String(token.role ?? '').toUpperCase();
+    if (role !== 'ADMIN' && role !== 'MODERATOR') {
+      return redirectTo(request, '/');
+    }
   }
 
   return NextResponse.next();
