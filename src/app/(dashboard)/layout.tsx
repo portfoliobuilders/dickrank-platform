@@ -10,6 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Link>
           <nav className="flex gap-4 text-sm text-zinc-300">
             <Link href="/discovery">Discover</Link>
+            <Link href="/messages">Messages</Link>
             <Link href="/creator/dashboard">Dashboard</Link>
             <Link href="/creator/onboarding">Payout setup</Link>
           </nav>
