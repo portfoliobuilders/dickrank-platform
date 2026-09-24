@@ -22,3 +22,7 @@ export const prisma =
 if (process.env.NODE_ENV !== "production" && process.env.DATABASE_URL) {
   globalForPrisma.prisma = prisma;
 }
+
+export function getPrisma(): PrismaClient {
+  return prisma;
+}

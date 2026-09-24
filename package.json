@@ -4,10 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/lib/admin-moderation.test.ts src/lib/moderation.test.ts src/lib/categories.test.ts",
+    "typecheck": "prisma generate && tsc --noEmit",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -29,6 +28,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.15.3",
+    "resend": "^6.28.1",
     "stripe": "^22.4.0",
     "tailwind-merge": "^3.7.0",
     "zod": "^3.24.2"

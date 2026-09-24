@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { writeAudit } from '@/lib/audit';
 import { hashLookup, secretsMatch } from '@/lib/encryption';
+import { emailTemplates, sendResendEmail } from '@/lib/email';
 import { HttpError } from '@/lib/errors';
 import { clientIpHash, withApi } from '@/lib/http';
 import { getPrisma } from '@/lib/prisma';
@@ -56,6 +57,17 @@ export const POST = withApi(async (request) => {
       ipHash,
     });
   });
+
+  const welcome = emailTemplates.welcome(account.username);
+  try {
+    await sendResendEmail({
+      to: parsed.data.email.toLowerCase(),
+      subject: welcome.subject,
+      html: welcome.html,
+    });
+  } catch (error) {
+    console.error('welcome email failed', error);
+  }
 
   return NextResponse.json({ emailVerified: true });
 });
