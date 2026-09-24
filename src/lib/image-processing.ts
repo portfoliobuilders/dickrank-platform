@@ -89,9 +89,9 @@ function watermarkSvg(width: number, height: number, userId: string): Buffer {
 export async function processImage(options: ProcessImageOptions): Promise<ProcessedImage> {
   const { buffer, filename, userId, contentType } = options;
   const watermark = options.watermark ?? contentType === "content";
-  const owner = safeUserSegment(userId);
 
   try {
+    const owner = safeUserSegment(userId);
     const sourceMeta = await sharp(buffer).metadata();
     const width = sourceMeta.width ?? 0;
     const height = sourceMeta.height ?? 0;
