@@ -112,6 +112,28 @@ function clamp01(value: number): number {
   return value;
 }
 
+export type RankingEngagementStats = {
+  averageRating: number;
+  viewCount: number;
+  likeCount: number;
+  contentCount: number;
+};
+
+/**
+ * 0–20 engagement score. Rating is the main factor. Views, likes, and posts
+ * add a smaller bonus that grows slowly, so a high rating still beats a low
+ * rating with a lot more traffic. This is separate from the 0–100 board score.
+ */
+export function calculateRankingScore(stats: RankingEngagementStats): number {
+  const bonusScale = 0.2454;
+  const bonus =
+    (Math.log10(1 + stats.viewCount) +
+      Math.log10(1 + stats.likeCount) +
+      Math.log10(1 + stats.contentCount)) *
+    bonusScale;
+  return round2(stats.averageRating + bonus);
+}
+
 export function calculateWeightedRating(scores: CategoryScores): number {
   return round2(
     scores.feel * CATEGORY_WEIGHTS.feel +
